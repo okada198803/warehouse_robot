@@ -8,7 +8,11 @@ if [ -f /tmp/nav.pid ]; then
   rm -f /tmp/nav.pid
 fi
 pkill -9 -x ign
-pkill -9 -x parameter_bridge
+pkill -9 -f parameter_bridge   # -x は名前が 15 文字で切れるため一致しない(旧版は残っていた)
+pkill -9 -f static_transform_publisher
+pkill -9 -f rosapi
+pkill -9 -f rviz2
+pkill -9 -f ros_ign_gazebo
 pkill -9 -f 'ign gazebo'
 pkill -9 -f 'ros2 launch'
 pkill -9 -f rosbridge_websocket
