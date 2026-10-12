@@ -420,6 +420,9 @@ class Planner:
             return
         if any(self.places[t].get('kind') == 'cargo' for t in plan['targets']):
             return   # 荷物の搬送は、通常の経験(通行止めの組合せ)に混ぜない
+        text = self.instruction or ''
+        if not any(n in text for p in self.places.values() for n in [p['name'], *p.get('aliases', [])]):
+            return   # 地点名を含まない入力(打ち間違いなど)は、経験として保存しない
         found = self._best(plan['targets'])
         tol = self.shortest_tol if self.shortest_tol is not None else SHORTEST_TOL
         if found and length > found[1] * (1 + tol) + SHORTEST_MARGIN:

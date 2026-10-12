@@ -128,3 +128,27 @@ def test_existing_behavior_unchanged_for_plain_instruction_in_cargo_mode():
     p = Planner('warehouse', ScriptedLLM(goto('shipping')), cargo=True)
     d = p.handle_user('出荷口へ荷物を運んで')
     assert d.plan['targets'] == ['south_aisle', 'shipping']
+
+
+def test_input_without_place_name_is_not_saved_to_experience():
+    class Exp:
+        similar = False
+
+        def __init__(self):
+            self.items = []
+
+        def retrieve(self, blocked, similar=False):
+            return []
+
+        def add(self, **kw):
+            self.items.append(kw)
+
+    exp = Exp()
+    p = Planner('warehouse', ScriptedLLM(goto('charger')), experience=exp)
+    p.handle_user('python pointing_cam.py')
+    p.on_status({'state': 'done'})
+    assert exp.items == []
+    q = Planner('warehouse', ScriptedLLM(goto('charger')), experience=exp)
+    q.handle_user('充電ステーションへ行って')
+    q.on_status({'state': 'done'})
+    assert len(exp.items) == 1
