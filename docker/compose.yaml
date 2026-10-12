@@ -1,0 +1,16 @@
+services:
+  ros:
+    build: .
+    image: pai-final-ros:humble
+    container_name: pai-ros
+    platform: linux/arm64
+    shm_size: "2gb"
+    security_opt:
+      - seccomp:unconfined   # Gazebo の GUI が真っ黒になる場合の対策
+    ports:
+      - "6080:80"      # noVNC (ブラウザで http://localhost:6080)
+      - "9090:9090"    # rosbridge (Mac 側 Python から接続)
+    environment:
+      - RESOLUTION=1600x900
+    volumes:
+      - ../ros2_ws:/home/ubuntu/ros2_ws

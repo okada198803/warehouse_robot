@@ -1,0 +1,5 @@
+This repository includes and modifies code from 2DRoboPrac_ws
+(https://github.com/OsawaKousei/2DRoboPrac_ws), licensed under the Apache License 2.0:
+  ros2_ws/src/nav_dev, ros2_ws/src/key_event_msgs, ros2_ws/src/key_event_nodes
+  ros2_ws/src/ai_nav/config/bridge.yaml, params/nav2_params.yaml, maps/field.* (renamed from test_map4), config/ai_nav.rviz, worlds/warehouse.sdf (GUI settings from nav_slam.sdf)
+Changes: Nav2 parameters tuned (robot_radius, inflation, controller frequency, static-only global costmap); new package ai_nav and host scripts added.

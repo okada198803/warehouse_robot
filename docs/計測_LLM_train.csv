@@ -1,0 +1,7 @@
+﻿scenario,rep,step,kind,source,targets,llm_calls,verified_ok,verified_ng,first_try_ok,llm_time_s,correct,route_len,best_len,shortest,used_experience
+T1 南封鎖で充電,1,1,first,llm,middle_aisle→charger,1,1,0,True,2.11,True,7.5,7.5,True,False
+T2 南封鎖で東ホール,1,1,first,llm,middle_aisle→east_hall,1,1,0,True,3.01,True,6.3,6.3,True,True
+T3 南・中央封鎖で充電,1,1,first,llm,north_aisle→charger,2,1,1,False,4.51,True,8.0,8.0,True,False
+T4 南・中央封鎖で東ホール,1,1,first,llm,north_aisle→east_hall,1,1,0,True,3.61,True,8.5,8.5,True,True
+T5 封鎖なしで東ホール,1,1,first,llm,south_aisle→east_hall,1,1,0,True,2.39,True,6.2,6.2,True,False
+T6 中央封鎖で充電,1,1,first,llm,south_aisle→charger,2,1,1,False,5.8,True,8.0,8.0,True,False

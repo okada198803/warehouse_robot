@@ -1,0 +1,5 @@
+roslibpy>=1.7
+mediapipe>=0.10.14
+opencv-python>=4.9
+ollama>=0.4
+PyYAML>=6.0

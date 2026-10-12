@@ -1,0 +1,67 @@
+# フィールド上の地点辞書(map 座標系, 単位 m / rad)
+# LLM はこの id からしか目的地を選べない。座標は test_map4 の自由空間(壁から 0.3 m 以上)で確認済み。
+# 方位 yaw: 0 = +x(地図の右), 1.57 = +y(地図の上)
+places:
+  start:
+    name: スタートエリア
+    aliases: [スタート, 出発地点, ホーム, 初期位置]
+    description: 左下の出発地点
+    x: 0.45
+    y: 0.50
+    yaw: 1.57
+  bottom_right:
+    name: 右下の広場
+    aliases: [資材置き場, 右下]
+    description: 下段の右側にある広いエリア
+    x: 2.40
+    y: 0.90
+    yaw: 0.0
+  bottom_corridor:
+    name: 下の通路
+    aliases: [下段中央]
+    description: 下段を横切る通路の中央
+    x: 1.60
+    y: 1.55
+    yaw: 0.0
+  left_corridor:
+    name: 左の通路
+    aliases: [左レーン]
+    description: 左端の縦通路の中間
+    x: 0.40
+    y: 3.00
+    yaw: 1.57
+  center_corridor:
+    name: 中央の通路
+    aliases: [中央レーン, 真ん中の通路]
+    description: S字コースの中央の縦通路
+    x: 1.20
+    y: 3.30
+    yaw: 1.57
+  right_corridor:
+    name: 右の通路
+    aliases: [右レーン]
+    description: S字コースの右側の縦通路
+    x: 2.00
+    y: 3.50
+    yaw: 1.57
+  upper_mid:
+    name: 上段の入口
+    aliases: [上段中央]
+    description: 上段エリアへの入口付近
+    x: 1.30
+    y: 5.40
+    yaw: 1.57
+  upper_left_room:
+    name: 左上の小部屋
+    aliases: [左上]
+    description: 上段左側の小さな区画
+    x: 0.60
+    y: 5.90
+    yaw: 1.57
+  upper_plaza:
+    name: 上の広場
+    aliases: [ゴール, ゴールエリア, 一番奥]
+    description: フィールド最奥の広いエリア
+    x: 2.30
+    y: 6.40
+    yaw: 0.0

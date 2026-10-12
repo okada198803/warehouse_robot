@@ -1,0 +1,22 @@
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+host/models/
+host/.venv/
+__pycache__/
+.pytest_cache/
+*.mp4
+host/experience.json
+
+# 自動検証の出力(ログは大きいため除外。集計の CSV と summary は残す)
+docs/auto/logs/
+ros2_ws/v7_scans.json
+host/experience.json.bak
+docs/auto/before_strict/logs/
+docs/auto/strict_all/logs/
+
+# macOS・個人情報を含む内部メモ・提出用 PDF(ファイル名にアカウント名を含む)
+.DS_Store
+docs/申し送り.md
+docs/説明資料_*.pdf
+host/experience.json.bak

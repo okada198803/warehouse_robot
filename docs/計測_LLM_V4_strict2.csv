@@ -1,0 +1,25 @@
+﻿scenario,rep,step,kind,source,targets,llm_calls,verified_ok,verified_ng,first_try_ok,llm_time_s,correct,route_len,best_len,shortest,used_experience
+V4G01 出荷口へ行って,1,1,first,llm,south_aisle→shipping,1,1,0,True,4.05,True,5.6,5.5,True,False
+V4G02 出荷口まで移動して,1,1,first,llm,south_aisle→shipping,1,1,0,True,3.95,True,5.6,5.5,True,False
+V4G03 出荷口に向かってください,1,1,first,llm,south_aisle→shipping,1,1,0,True,4.12,True,5.6,5.5,True,False
+V4G04 荷物を出荷口へ運んで,1,1,first,llm,west_hall→south_aisle→shipping,1,1,0,True,5.07,True,,,,False
+V4G05 出荷口へお願いします,1,1,first,llm,south_aisle→shipping,1,1,0,True,4.5,True,5.6,5.5,True,False
+V4G06 出荷口に行きたい,1,1,first,llm,south_aisle→shipping,1,1,0,True,3.93,True,5.6,5.5,True,False
+V4H01 入荷口に戻って,1,1,first,llm,receiving,1,1,0,True,3.53,True,0.0,0.0,True,False
+V4H02 入荷口へ戻ってください,1,1,first,llm,receiving,1,1,0,True,3.6,True,0.0,0.0,True,False
+V4H03 入荷口に帰って,1,1,first,llm,receiving,1,1,0,True,3.59,True,0.0,0.0,True,False
+V4H04 入荷口まで戻って,1,1,first,llm,receiving,1,1,0,True,3.84,True,0.0,0.0,True,False
+V4H05 入荷口へ移動して,1,1,first,llm,receiving,1,1,0,True,3.86,True,0.0,0.0,True,False
+V4H06 入荷口に戻りたい,1,1,first,llm,receiving,1,1,0,True,4.26,True,0.0,0.0,True,False
+V4O01 事務所前へ行って,1,1,first,llm,office,1,1,0,True,4.52,True,3.4,3.4,True,False
+V4O02 事務所の前へ行って,1,1,first,llm,office,1,1,0,True,4.23,True,3.4,3.4,True,False
+V4O03 事務所前まで移動して,1,1,first,llm,office,1,1,0,True,3.5,True,3.4,3.4,True,False
+V4O04 事務所前に向かってください,1,1,first,llm,office,1,1,0,True,4.27,True,3.4,3.4,True,False
+V4O05 事務所の前までお願いします,1,1,first,llm,office,1,1,0,True,4.37,True,3.4,3.4,True,False
+V4O06 事務所前へ移動,1,1,first,llm,office,1,1,0,True,3.53,True,3.4,3.4,True,False
+V4C01 南通路は片付いた,1,1,first,clear,,0,0,0,False,0,True,,,,False
+V4C02 南通路の障害物はなくなった,1,1,first,clear,,0,0,0,False,0,True,,,,False
+V4C03 南通路は通れるようになった,1,1,first,clear,,0,0,0,False,0,True,,,,False
+V4C04 南通路の片付けが終わった,1,1,first,clear,,0,0,0,False,0,True,,,,False
+V4C05 南通路はもう空いている,1,1,first,clear,,0,0,0,False,0,True,,,,False
+V4C06 南通路を片付けました,1,1,first,clear,,0,0,0,False,0,True,,,,False

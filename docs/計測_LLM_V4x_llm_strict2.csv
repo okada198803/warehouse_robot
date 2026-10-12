@@ -1,0 +1,14 @@
+﻿scenario,rep,step,kind,source,targets,llm_calls,verified_ok,verified_ng,first_try_ok,llm_time_s,correct,route_len,best_len,shortest,used_experience
+V4XP01 南通路はもう大丈夫になった,1,1,first,llm,,1,0,0,False,4.01,True,,,,False
+V4XP02 南通路の障害物をどかしたよ,1,1,first,llm,,1,0,0,False,4.11,True,,,,False
+V4XP03 南通路は問題なく通れます,1,1,first,llm,west_hall,1,1,0,True,5.0,False,1.8,1.8,True,False
+V4XP04 南通路は元に戻った,1,1,first,llm,,1,0,0,False,3.72,True,,,,False
+V4XP05 南通路の荷物は片付けておいた,1,1,first,llm,,1,0,0,False,4.83,False,,,,False
+V4XP06 南通路はもう使って構わない,1,1,first,llm,west_hall,1,1,0,True,4.85,False,1.8,1.8,True,False
+V4XP07 南通路を塞いでいたものはなくなりました,1,1,first,llm,,1,0,0,False,4.08,True,,,,False
+V4XP08 南通路は復旧した,1,1,first,llm,,1,0,0,False,4.17,True,,,,False
+V4XN01 南通路はまだ片付いていない,1,1,first,llm,,1,0,0,False,4.84,True,,,,False
+V4XN02 南通路は通れるようになっていない,1,1,first,llm,,1,0,0,False,4.82,True,,,,False
+V4XN03 南通路の状況を教えて,1,1,first,llm,,1,0,0,False,5.25,True,,,,False
+V4XN04 南通路は通れる?,1,1,first,llm,,1,0,0,False,4.65,True,,,,False
+V4XN05 南通路はまだ使えない,1,1,first,block,,0,0,0,False,0,True,,,,False
