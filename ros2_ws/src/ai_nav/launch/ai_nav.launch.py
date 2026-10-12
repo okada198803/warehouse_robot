@@ -64,7 +64,7 @@ def setup(context):
 
     delayed = [navigation, executor]
     if LaunchConfiguration('cargo').perform(context) == 'true':
-        # 荷物の積載・荷降ろしの模擬(見た目のみ)。mode: follow(箱が載って移動)/ hide(消えて現れる)
+        # 荷物の積載・荷降ろしの模擬(見た目のみ)。mode: hide(消えて現れる。既定)/ follow(箱が載って移動。実験的)
         delayed.append(Node(
             package='ai_nav', executable='cargo_sim', output='screen',
             parameters=[{'use_sim_time': use_sim_time, 'places_file': places,
@@ -93,7 +93,8 @@ def generate_launch_description():
         DeclareLaunchArgument('gz_gui', default_value='true'),
         DeclareLaunchArgument('rviz', default_value='true'),
         DeclareLaunchArgument('cargo', default_value='false', description='荷物の積載を模擬する'),
-        DeclareLaunchArgument('cargo_mode', default_value='follow', description='follow | hide'),
+        DeclareLaunchArgument('cargo_mode', default_value='hide',
+                              description='hide(積載で箱が消え、荷降ろしで現れる。動作確認済み)| follow(箱がロボットに載って動く。実験的)'),
         DeclareLaunchArgument(
             'params_file', default_value=os.path.join(share, 'params', 'nav2_params.yaml')),
         OpaqueFunction(function=setup),
