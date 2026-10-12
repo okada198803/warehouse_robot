@@ -107,3 +107,25 @@ def test_selection_file_ttl(tmp_path):
     with open(p, 'w') as f:
         f.write('broken')
     assert read_selection(p, now=101.0) is None
+
+
+def test_pending_instruction_resumes_when_pointing_arrives():
+    from pointing import PendingInstruction
+    p = PendingInstruction(ttl=30.0)
+    assert p.take('cargo_center', 0.0) is None            # 保持中の指示がなければ何もしない
+    p.hold('あれを出荷口へ運んで', 100.0)
+    assert p.take(None, 101.0) is None                      # 指差しがまだ
+    assert p.take('cargo_center', 105.0) == 'あれを出荷口へ運んで'
+    assert p.take('cargo_center', 106.0) is None            # 1 回だけ続行する
+
+
+def test_pending_instruction_expires_and_can_be_cancelled():
+    from pointing import PendingInstruction
+    p = PendingInstruction(ttl=30.0)
+    p.hold('あれを出荷口へ', 0.0)
+    assert not p.expired(10.0)
+    assert p.expired(31.0) and p.text is None
+    assert p.take('cargo_south', 32.0) is None
+    p.hold('それを運んで', 40.0)
+    p.cancel()
+    assert p.take('cargo_south', 41.0) is None

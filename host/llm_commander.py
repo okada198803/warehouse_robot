@@ -24,7 +24,7 @@ import ollama
 
 from experience import Experience
 from planner import Planner
-from pointing import clear_selection, read_selection
+from pointing import PendingInstruction, clear_selection, read_selection
 
 EXPERIENCE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'experience.json')
 
@@ -48,6 +48,7 @@ class Commander:
         self.link = link
         self.verbose = verbose
         self.events = queue.Queue()
+        self.pending = PendingInstruction()   # 聞き返し中の指示(指差しが確定したら続行する)
         threading.Thread(target=self.worker, daemon=True).start()
         if link:
             link.on_status(lambda st: self.events.put(('status', st)))
@@ -61,6 +62,11 @@ class Commander:
                     text, pointed = payload
                     d = self.planner.handle_user(text, pointed=pointed)
                     self.show(d)
+                    if d.source == 'ask':
+                        self.pending.hold(text, time.time())
+                        print(f'    (指差しが確定すると、この指示を続けます: 「{text}」)')
+                    else:
+                        self.pending.cancel()
                     if pointed and d.plan and d.plan.get('targets', [None])[0] == pointed:
                         clear_selection()   # 指差しは 1 回の指示に使い切る
                 elif kind == 'status':
@@ -70,6 +76,21 @@ class Commander:
             except Exception as e:   # 1 件の失敗で全体を止めない
                 print(f'[{ts()}] エラー: {e!r}')
             print('> ', end='', flush=True)
+
+    def watch_pointing(self):
+        """聞き返し中に指差しが確定したら、保持していた指示を指差しつきで実行する。"""
+        while True:
+            time.sleep(0.3)
+            now = time.time()
+            if self.pending.expired(now):
+                print(f'\n[{ts()}] 指差しが確認できなかったため、指示を取り消しました')
+                print('> ', end='', flush=True)
+                continue
+            sel = read_selection()
+            text = self.pending.take(sel, now)
+            if text:
+                print(f'\n[{ts()}] 指差し: {self.planner.places[sel]["name"]} → 指示を続けます: 「{text}」')
+                self.events.put(('user', (text, sel)))
 
     def on_status(self, st):
         self.planner.on_status(st)
@@ -131,6 +152,8 @@ def main():
         link = RosLink(args.host, args.port)
         print(f'connected to rosbridge {args.host}:{args.port}')
     cmd = Commander(planner, link, verbose=not args.quiet)
+    if args.cargo:
+        threading.Thread(target=cmd.watch_pointing, daemon=True).start()
 
     print(f'model: {args.model} / world: {args.world}')
     print('地点: ' + '、'.join(p['name'] for p in planner.places.values()))

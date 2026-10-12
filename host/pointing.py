@@ -163,3 +163,32 @@ def clear_selection(path=SELECTION_FILE):
         os.remove(path)
     except OSError:
         pass
+
+
+class PendingInstruction:
+    """「どの荷物ですか?」と聞き返した指示を保持し、指差しが確定したら続行できるようにする。"""
+
+    def __init__(self, ttl=30.0):
+        self.ttl = ttl
+        self.text = None
+        self.t = 0.0
+
+    def hold(self, text, now):
+        self.text, self.t = text, now
+
+    def cancel(self):
+        self.text = None
+
+    def expired(self, now):
+        """保持中の指示が期限切れなら True(同時に破棄する)。"""
+        if self.text is not None and now - self.t > self.ttl:
+            self.text = None
+            return True
+        return False
+
+    def take(self, selection, now):
+        """指差し selection があり、保持中の指示が有効ならその指示を返して破棄する。"""
+        if selection and self.text is not None and now - self.t <= self.ttl:
+            text, self.text = self.text, None
+            return text
+        return None
