@@ -63,6 +63,12 @@ def setup(context):
         parameters=[{'use_sim_time': use_sim_time, 'places_file': places}])
 
     delayed = [navigation, executor]
+    if LaunchConfiguration('cargo').perform(context) == 'true':
+        # 荷物の積載・荷降ろしの模擬(見た目のみ)。mode: follow(箱が載って移動)/ hide(消えて現れる)
+        delayed.append(Node(
+            package='ai_nav', executable='cargo_sim', output='screen',
+            parameters=[{'use_sim_time': use_sim_time, 'places_file': places,
+                         'world': world, 'mode': LaunchConfiguration('cargo_mode').perform(context)}]))
     if rviz:
         delayed.append(Node(
             package='rviz2', executable='rviz2', output='log',
@@ -86,6 +92,8 @@ def generate_launch_description():
         DeclareLaunchArgument('use_sim_time', default_value='true'),
         DeclareLaunchArgument('gz_gui', default_value='true'),
         DeclareLaunchArgument('rviz', default_value='true'),
+        DeclareLaunchArgument('cargo', default_value='false', description='荷物の積載を模擬する'),
+        DeclareLaunchArgument('cargo_mode', default_value='follow', description='follow | hide'),
         DeclareLaunchArgument(
             'params_file', default_value=os.path.join(share, 'params', 'nav2_params.yaml')),
         OpaqueFunction(function=setup),

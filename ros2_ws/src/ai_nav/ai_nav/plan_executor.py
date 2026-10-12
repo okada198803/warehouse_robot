@@ -44,6 +44,7 @@ class PlanExecutor(Node):
         # 向きを変えている間は立ち往生としない。ただし位置が動かない時間がこれを超えたら停止とみなす
         self.declare_parameter('max_no_progress', 24.0)  # [s]
         self.max_no_progress = self.get_parameter('max_no_progress').value
+        self.declare_parameter('load_wait', 2.0)   # [s] 荷物地点(kind: cargo)に着いてから次へ出発するまでの積載の待ち時間
         # 立ち往生後、向きを変えずに来た方向へ直線で後退する距離 [m]
         self.declare_parameter('retreat_dist', 4.0)      # 最大後退距離 [m]
         self.declare_parameter('retreat_clear', 2.5)     # 停止した通路の中心からこの距離に出たら止める [m]
@@ -319,7 +320,11 @@ class PlanExecutor(Node):
         if status == GoalStatus.STATUS_SUCCEEDED:
             self.publish_status('arrived', target=pid)
             self.queue.pop(0)
-            self.send_next()
+            wait = self.get_parameter('load_wait').value
+            if self.places[pid].get('kind') == 'cargo' and self.queue and wait > 0:
+                self.start_after(wait, plan_id)   # 積載の模擬のため、少し待ってから出発する
+            else:
+                self.send_next()
         elif status == GoalStatus.STATUS_CANCELED:
             self.publish_status('canceled', target=pid)
         else:
@@ -331,6 +336,18 @@ class PlanExecutor(Node):
             self.queue = []
             self.publish_status(state, target=pid, remaining=remaining, near_aisle=near,
                                 cause=cause, scan_hits=hits, message=f'nav2 status {status}')
+
+    def start_after(self, seconds, plan_id):
+        """seconds 後に次の地点へ出発する。その間に停止・再計画された場合は何もしない。"""
+        holder = {}
+
+        def fire():
+            holder['timer'].cancel()
+            self.destroy_timer(holder['timer'])
+            if plan_id == self.plan_id and self.queue:
+                self.send_next()
+
+        holder['timer'] = self.create_timer(seconds, fire)
 
     def cancel_current(self):
         self.plan_id += 1   # 進行中のコールバックを無効化

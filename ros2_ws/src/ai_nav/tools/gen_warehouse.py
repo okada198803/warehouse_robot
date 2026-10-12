@@ -36,6 +36,53 @@ BOXES = [
 ]
 
 
+# 見た目だけのモデル(衝突なし)。地図・LiDAR・Nav2 に影響しない
+CONTROL_ROOM = [   # (名前, 中心x, 中心y, 幅x, 奥行y, 高さ, 色RGB)。壁の外(西側)に置くコントロールルーム
+    ('room_floor', -1.5, 2.5, 2.4, 2.6, 0.02, (0.25, 0.3, 0.38)),
+    ('room_wall_back', -2.75, 2.5, 0.1, 2.6, 0.5, (0.35, 0.4, 0.5)),
+    ('room_wall_south', -1.5, 1.2, 2.5, 0.1, 0.5, (0.35, 0.4, 0.5)),
+    ('room_wall_north', -1.5, 3.8, 2.5, 0.1, 0.5, (0.35, 0.4, 0.5)),
+    ('room_window', -0.12, 2.5, 0.04, 1.6, 0.3, (0.55, 0.8, 0.95)),   # 西壁の窓(見た目のみ)
+    ('room_desk', -1.0, 2.5, 0.3, 0.9, 0.35, (0.5, 0.35, 0.2)),
+    ('room_camera', -0.95, 2.5, 0.08, 0.2, 0.12, (0.05, 0.05, 0.05)),  # Mac カメラの位置
+]
+CARGO_SIZE = 0.3
+CARGO_COLORS = {'cargo_north': (0.9, 0.55, 0.1), 'cargo_center': (0.9, 0.75, 0.1),
+                'cargo_south': (0.8, 0.35, 0.1)}
+
+
+def visual_model(name, cx, cy, sx, sy, sz, rgb, dynamic=False):
+    """衝突を持たない見た目だけのモデル。dynamic=True は set_pose で動かせる(重力なし)。"""
+    color = f'{rgb[0]} {rgb[1]} {rgb[2]} 1'
+    static = 'false' if dynamic else 'true'
+    gravity = '<gravity>false</gravity>' if dynamic else ''
+    return f"""
+    <model name="{name}">
+      <static>{static}</static>
+      <pose>{cx} {cy} {sz / 2} 0 0 0</pose>
+      <link name="link">
+        {gravity}
+        <visual name="visual">
+          <geometry><box><size>{sx} {sy} {sz}</size></box></geometry>
+          <material><ambient>{color}</ambient><diffuse>{color}</diffuse></material>
+        </visual>
+      </link>
+    </model>"""
+
+
+def cargo_models():
+    """地点辞書の kind: cargo の box 位置に荷物の箱を置く。"""
+    import yaml
+    with open(os.path.join(PKG, 'config', 'places_warehouse.yaml'), encoding='utf-8') as f:
+        places = yaml.safe_load(f)['places']
+    out = ''
+    for pid, p in places.items():
+        if p.get('kind') == 'cargo':
+            out += visual_model(pid, p['box']['x'], p['box']['y'], CARGO_SIZE, CARGO_SIZE,
+                                CARGO_SIZE, CARGO_COLORS.get(pid, (0.9, 0.55, 0.1)), dynamic=True)
+    return out
+
+
 def box_model(name, cx, cy, sx, sy, sz, rgb):
     color = f'{rgb[0]} {rgb[1]} {rgb[2]} 1'
     return f"""
@@ -61,6 +108,7 @@ def write_world():
     sdf = sdf.replace('<camera_pose>-6 0 6 0 0.5 0</camera_pose>',
                       '<camera_pose>3.5 -3.5 7.5 0 0.95 1.57</camera_pose>')
     models = ''.join(box_model(*b) for b in BOXES)
+    models += ''.join(visual_model(*b) for b in CONTROL_ROOM) + cargo_models()
     sdf = sdf.replace('  </world>', models + '\n  </world>')
     out = os.path.join(PKG, 'worlds', f'{WORLD_NAME}.sdf')
     with open(out, 'w', encoding='utf-8') as f:

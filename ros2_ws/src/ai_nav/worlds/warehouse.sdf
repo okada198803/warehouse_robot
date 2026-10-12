@@ -408,5 +408,115 @@
         </visual>
       </link>
     </model>
+    <model name="room_floor">
+      <static>true</static>
+      <pose>-1.5 2.5 0.01 0 0 0</pose>
+      <link name="link">
+        
+        <visual name="visual">
+          <geometry><box><size>2.4 2.6 0.02</size></box></geometry>
+          <material><ambient>0.25 0.3 0.38 1</ambient><diffuse>0.25 0.3 0.38 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="room_wall_back">
+      <static>true</static>
+      <pose>-2.75 2.5 0.25 0 0 0</pose>
+      <link name="link">
+        
+        <visual name="visual">
+          <geometry><box><size>0.1 2.6 0.5</size></box></geometry>
+          <material><ambient>0.35 0.4 0.5 1</ambient><diffuse>0.35 0.4 0.5 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="room_wall_south">
+      <static>true</static>
+      <pose>-1.5 1.2 0.25 0 0 0</pose>
+      <link name="link">
+        
+        <visual name="visual">
+          <geometry><box><size>2.5 0.1 0.5</size></box></geometry>
+          <material><ambient>0.35 0.4 0.5 1</ambient><diffuse>0.35 0.4 0.5 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="room_wall_north">
+      <static>true</static>
+      <pose>-1.5 3.8 0.25 0 0 0</pose>
+      <link name="link">
+        
+        <visual name="visual">
+          <geometry><box><size>2.5 0.1 0.5</size></box></geometry>
+          <material><ambient>0.35 0.4 0.5 1</ambient><diffuse>0.35 0.4 0.5 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="room_window">
+      <static>true</static>
+      <pose>-0.12 2.5 0.15 0 0 0</pose>
+      <link name="link">
+        
+        <visual name="visual">
+          <geometry><box><size>0.04 1.6 0.3</size></box></geometry>
+          <material><ambient>0.55 0.8 0.95 1</ambient><diffuse>0.55 0.8 0.95 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="room_desk">
+      <static>true</static>
+      <pose>-1.0 2.5 0.175 0 0 0</pose>
+      <link name="link">
+        
+        <visual name="visual">
+          <geometry><box><size>0.3 0.9 0.35</size></box></geometry>
+          <material><ambient>0.5 0.35 0.2 1</ambient><diffuse>0.5 0.35 0.2 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="room_camera">
+      <static>true</static>
+      <pose>-0.95 2.5 0.06 0 0 0</pose>
+      <link name="link">
+        
+        <visual name="visual">
+          <geometry><box><size>0.08 0.2 0.12</size></box></geometry>
+          <material><ambient>0.05 0.05 0.05 1</ambient><diffuse>0.05 0.05 0.05 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="cargo_north">
+      <static>false</static>
+      <pose>1.7 3.4 0.15 0 0 0</pose>
+      <link name="link">
+        <gravity>false</gravity>
+        <visual name="visual">
+          <geometry><box><size>0.3 0.3 0.3</size></box></geometry>
+          <material><ambient>0.9 0.55 0.1 1</ambient><diffuse>0.9 0.55 0.1 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="cargo_center">
+      <static>false</static>
+      <pose>1.6 2.5 0.15 0 0 0</pose>
+      <link name="link">
+        <gravity>false</gravity>
+        <visual name="visual">
+          <geometry><box><size>0.3 0.3 0.3</size></box></geometry>
+          <material><ambient>0.9 0.75 0.1 1</ambient><diffuse>0.9 0.75 0.1 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="cargo_south">
+      <static>false</static>
+      <pose>1.7 1.6 0.15 0 0 0</pose>
+      <link name="link">
+        <gravity>false</gravity>
+        <visual name="visual">
+          <geometry><box><size>0.3 0.3 0.3</size></box></geometry>
+          <material><ambient>0.8 0.35 0.1 1</ambient><diffuse>0.8 0.35 0.1 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
   </world>
 </sdf>

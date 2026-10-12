@@ -147,8 +147,8 @@ python gesture_teleop.py              # Mac(自律移動中の非常停止のみ
 ## テスト
 
 ```bash
-cd ros2_ws/src/ai_nav && python -m pytest test   # 計画検証・経路検証(21件)
-cd host && python -m pytest tests                # ジェスチャー変換・再計画ループ・検証用ロジック(43件)
+cd ros2_ws/src/ai_nav && python -m pytest test   # 計画検証・経路検証(31件)
+cd host && python -m pytest tests                # ジェスチャー変換・再計画ループ・検証用ロジック・指差し・荷物搬送(67件)
 ```
 
 再計画ループのテストでは、LLM を台本どおりに応答する偽物に置き換えて、次の 5 点を確認している。
@@ -158,6 +158,19 @@ cd host && python -m pytest tests                # ジェスチャー変換・�
 - 二重封鎖時に北通路を選ぶこと
 - 全封鎖時に到着不能を報告すること
 - 再計画回数の上限
+
+## 荷物搬送(指差し + 言葉)
+
+「あれを出荷口へ運んで」と言いながら荷物を指すと、ロボットが荷物置き場へ向かい、積載(模擬)して、出荷口へ運ぶ。
+倉庫の外のコントロールルーム(見た目のみ)から、Mac のカメラで手の向きを読み、荷物置き場 3 方向に対応づける。
+荷物はロボットの上へ移り(Gazebo の箱。衝突なし)、目的地の前に降ろされる。把持・積載の物理は対象外。
+手順・校正・確認項目は `docs/荷物搬送_手順.md`。
+
+```bash
+bash ~/ros2_ws/run_nav.sh cargo:=true       # Docker(noVNC)
+python pointing_cam.py                      # Mac: 指差し(カメラ映像は表示せず、手の骨格だけ描く)
+python llm_commander.py --cargo             # Mac: 「あれを出荷口へ運んで」
+```
 
 ## 追加検証(V1〜V7)
 

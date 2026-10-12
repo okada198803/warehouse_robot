@@ -79,3 +79,32 @@ places:
     x: 3.5
     y: 3.95
     yaw: 0.0
+  # ---- 荷物置き場(kind: cargo)。--cargo のときだけ LLM に見せる。box は荷物の箱の位置(見た目のみ・衝突なし)
+  # コントロールルーム(-0.8, 2.5)から東を向いて見た方向: 北=左、南=右。ロボットは箱の 0.6 m 手前で止まる
+  cargo_north:
+    name: 北の荷物
+    aliases: [北側の荷物, 左の荷物]
+    description: 西ホール北側の荷物置き場
+    kind: cargo
+    x: 1.1
+    y: 3.4
+    yaw: 0.0
+    box: {x: 1.7, y: 3.4}
+  cargo_center:
+    name: 中央の荷物
+    aliases: [真ん中の荷物, 中の荷物]
+    description: 西ホール中央の荷物置き場
+    kind: cargo
+    x: 1.0
+    y: 2.5
+    yaw: 0.0
+    box: {x: 1.6, y: 2.5}
+  cargo_south:
+    name: 南の荷物
+    aliases: [南側の荷物, 右の荷物]
+    description: 西ホール南側の荷物置き場
+    kind: cargo
+    x: 1.1
+    y: 1.6
+    yaw: 0.0
+    box: {x: 1.7, y: 1.6}

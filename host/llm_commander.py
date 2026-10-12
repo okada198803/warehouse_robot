@@ -4,6 +4,7 @@
     python llm_commander.py --world field        # 春ロボフィールド
     python llm_commander.py --dry-run            # ROS なしで LLM の判断だけ確認
     python llm_commander.py --model qwen2.5:3b   # 軽量モデル
+    python llm_commander.py --cargo              # 荷物の搬送: 「あれを出荷口へ」+ 指差し(pointing_cam.py)
 
 対話中のコマンド(デモ・検証用)
     /block <通路id>   立ち往生の報告を模擬する(--dry-run で再計画を試す)
@@ -23,6 +24,7 @@ import ollama
 
 from experience import Experience
 from planner import Planner
+from pointing import clear_selection, read_selection
 
 EXPERIENCE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'experience.json')
 
@@ -56,7 +58,11 @@ class Commander:
             kind, payload = self.events.get()
             try:
                 if kind == 'user':
-                    self.show(self.planner.handle_user(payload))
+                    text, pointed = payload
+                    d = self.planner.handle_user(text, pointed=pointed)
+                    self.show(d)
+                    if pointed and d.plan and d.plan.get('targets', [None])[0] == pointed:
+                        clear_selection()   # 指差しは 1 回の指示に使い切る
                 elif kind == 'status':
                     self.on_status(payload)
             except ollama.ResponseError as e:
@@ -110,11 +116,13 @@ def main():
     ap.add_argument('--dry-run', action='store_true', help='ROS に接続しない')
     ap.add_argument('--no-experience', action='store_true',
                     help='到着できた計画の記録(experience.json)を使わず、保存もしない')
+    ap.add_argument('--cargo', action='store_true',
+                    help='荷物の搬送に対応する(荷物置き場を使い、「あれ」を指差し(pointing_cam.py)で解決する)')
     ap.add_argument('--quiet', action='store_true', help='LLM 案と検証ログを表示しない')
     args = ap.parse_args()
 
     exp = None if args.no_experience else Experience(EXPERIENCE_FILE)
-    planner = Planner(args.world, make_llm(args.model), experience=exp)
+    planner = Planner(args.world, make_llm(args.model), experience=exp, cargo=args.cargo)
     if exp is not None:
         print(f'経験 {len(exp)} 件を参照(到着した最短の計画は追加で保存)')
     link = None
@@ -143,7 +151,10 @@ def main():
                     continue
                 cmd.simulate_block(aisle)
             else:
-                cmd.events.put(('user', text))
+                pointed = read_selection() if args.cargo else None
+                if pointed:
+                    print(f'    指差し: {planner.places[pointed]["name"]}')
+                cmd.events.put(('user', (text, pointed)))
     except (EOFError, KeyboardInterrupt):
         pass
     finally:
