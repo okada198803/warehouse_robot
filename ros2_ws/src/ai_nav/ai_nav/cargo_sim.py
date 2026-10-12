@@ -27,8 +27,11 @@ from ai_nav.plan_logic import load_places, yaw_to_quaternion
 class PoseSetter:
     """最新の目標だけを保持し、別スレッドで set_pose を呼ぶ(呼び出しが遅くても詰まらない)。"""
 
-    def __init__(self, world):
+    def __init__(self, world, log=None):
         self.world = world
+        self.log = log or (lambda msg: None)
+        self.calls = 0
+        self.fails = 0
         self.latest = {}          # 箱の名前 -> (x, y, z, yaw)
         self.lock = threading.Lock()
         self.wake = threading.Event()
@@ -52,10 +55,23 @@ class PoseSetter:
         qz, qw = yaw_to_quaternion(yaw)
         req = (f'name: "{name}" position {{x: {x:.3f} y: {y:.3f} z: {z:.3f}}} '
                f'orientation {{z: {qz:.4f} w: {qw:.4f}}}')
-        subprocess.run(['ign', 'service', '-s', f'/world/{self.world}/set_pose',
-                        '--reqtype', 'ignition.msgs.Pose', '--reptype', 'ignition.msgs.Boolean',
-                        '--timeout', '500', '--req', req],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        t0 = time.monotonic()
+        try:
+            r = subprocess.run(['ign', 'service', '-s', f'/world/{self.world}/set_pose',
+                                '--reqtype', 'ignition.msgs.Pose', '--reptype', 'ignition.msgs.Boolean',
+                                '--timeout', '500', '--req', req],
+                               capture_output=True, text=True, timeout=10, check=False)
+            ok = r.returncode == 0 and 'true' in r.stdout
+            detail = (r.stdout + r.stderr).strip()[:120]
+        except subprocess.TimeoutExpired:
+            ok, detail = False, 'timeout'
+        self.calls += 1
+        if not ok:
+            self.fails += 1
+        # 最初の数回と、失敗は記録する(積載中に箱が動かない原因の切り分け用)
+        if self.calls <= 3 or not ok:
+            self.log(f'set_pose {name} -> ({x:.2f}, {y:.2f}, {z:.2f}) '
+                     f'{"ok" if ok else "FAILED: " + detail} {time.monotonic() - t0:.2f}s')
 
 
 class CargoSim(Node):
@@ -72,12 +88,13 @@ class CargoSim(Node):
         self.declare_parameter('anim_sec', 1.2)           # 載せる・降ろす動きの時間
         self.places = load_places(self.get_parameter('places_file').value)
         self.tracker = CargoTracker(self.places)
-        self.setter = PoseSetter(self.get_parameter('world').value)
+        self.setter = PoseSetter(self.get_parameter('world').value, self.get_logger().info)
         self.mode = self.get_parameter('mode').value
         self.carry_z = self.get_parameter('carry_z').value
         self.anim_sec = self.get_parameter('anim_sec').value
         self.pose = None              # ロボットの (x, y, yaw)
         self.anim = None              # {'name', 'from', 'to', 't0'}: 箱の移動の途中
+        self.last_log = 0.0
         self.home = {pid: (p['box']['x'], p['box']['y'], FLOOR_Z, 0.0)
                      for pid, p in self.places.items() if p.get('kind') == 'cargo'}
         self.pub = self.create_publisher(String, '/ai/status', 10)
@@ -154,6 +171,11 @@ class CargoSim(Node):
             return
         if self.tracker.loaded and self.pose is not None:
             self.setter.set(self.tracker.loaded, self.carry_pose())
+            if time.monotonic() - self.last_log > 3.0:
+                self.last_log = time.monotonic()
+                x, y, z, _ = self.carry_pose()
+                self.get_logger().info(f'carrying {self.tracker.loaded} at ({x:.2f}, {y:.2f}, {z:.2f}) '
+                                       f'set_pose calls={self.setter.calls} fails={self.setter.fails}')
 
 
 def main():
