@@ -1,0 +1,6 @@
+{"t": 0.0, "kind": "user", "text": "指定の経路で移動して"}
+{"t": 0.08, "kind": "planner", "line": "LLM案1: {\"action\": \"goto\", \"targets\": [\"receiving\"], \"blocked_add\": [], \"blocked_clear\": [], \"reply\": \"移動します\"}"}
+{"t": 0.08, "kind": "planner", "line": "検証OK: 経路長 約0.0 m"}
+{"t": 0.08, "kind": "decision", "label": "user", "source": "llm", "reply": "入荷口へ向かいます", "plan": {"action": "goto", "targets": ["receiving"]}}
+{"t": 0.14, "kind": "status", "state": "arrived", "total": 1, "target": "receiving", "target_name": "入荷口", "pose": [0.8, 0.8]}
+{"t": 0.14, "kind": "status", "state": "done", "total": 1, "pose": [0.8, 0.8], "message": "all targets reached"}

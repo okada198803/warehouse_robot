@@ -27,8 +27,17 @@ def fit(samples):
         raise ValueError('3 件以上の実測が必要です')
     a = np.array([[length, stops, 1.0] for length, stops, _, _ in samples], dtype=float)
     y = np.array([t - LOAD_WAIT * cargo for _, _, cargo, t in samples], dtype=float)
-    (m, s, b), *_ = np.linalg.lstsq(a, y, rcond=None)
-    return EtaModel(float(m), float(s), float(b))
+    active = [0, 1, 2]                       # 0: 1 m あたり / 1: 停止 1 回あたり / 2: 定数
+    while True:                              # 負になった係数は 0 に固定して当てはめ直す(秒数は負にならない)
+        coef, *_ = np.linalg.lstsq(a[:, active], y, rcond=None)
+        neg = [i for i, c in zip(active, coef) if c < 0 and i != 0]
+        if not neg or len(active) == 1:
+            break
+        active.remove(neg[0] if len(neg) == 1 else min(neg, key=lambda i: coef[active.index(i)]))
+    full = [0.0, 0.0, 0.0]
+    for i, c in zip(active, coef):
+        full[i] = float(c)
+    return EtaModel(*full)
 
 
 def errors(model, samples):

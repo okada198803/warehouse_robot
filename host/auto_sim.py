@@ -74,6 +74,7 @@ def soft_reset(link):
     link.send_plan({'action': 'stop'})
     time.sleep(2.0)
     sh('ros2 run ai_nav obstacle clear', timeout=60)
+    hide_cargo()
     req = 'name: \\"LidarRobo4\\" position {x: %.2f y: %.2f z: 0.075} orientation {w: 1.0}' % START
     for _ in range(2):
         sh('ign service -s /world/warehouse/set_pose --reqtype ignition.msgs.Pose '
@@ -85,6 +86,20 @@ def soft_reset(link):
     xy = robot_xy()
     if xy is None or abs(xy[0] - START[0]) > 0.3 or abs(xy[1] - START[1]) > 0.3:
         raise NeedRestart(f'初期位置に戻せない: {xy}')
+
+
+CARGO_IDS = ('cargo_north', 'cargo_center', 'cargo_south')
+
+
+def hide_cargo():
+    """荷物の箱(見た目だけのモデル)を床下へ隠す。荷物搬送の追加前と同じ条件で測るため、既定で毎回行う。
+    環境変数 AUTO_CARGO=visible なら隠さない(箱が見える状態での測定用)。"""
+    if os.environ.get('AUTO_CARGO', 'hide') == 'visible':
+        return
+    for name in CARGO_IDS:
+        req = 'name: \\"%s\\" position {x: 1.0 y: 2.5 z: -5.0} orientation {w: 1.0}' % name
+        sh('ign service -s /world/warehouse/set_pose --reqtype ignition.msgs.Pose '
+           f'--reptype ignition.msgs.Boolean --timeout 3000 --req "{req}"', timeout=30)
 
 
 def place_pallet(aisle):
@@ -304,7 +319,7 @@ def trials(suite, n):
                       script=['出荷口へ行って'], expected_blocked=['south_aisle']), i)
                 for i in range(1, (n or 20) + 1)]
     if suite == 'v8':    # 到着時間の予測の検証: 障害物なしで、長さの違う経路を走らせて実測する
-        routes = [['west_hall'], ['receiving'], ['office'], ['shipping'], ['east_hall'], ['charger'],
+        routes = [['west_hall'], ['office', 'receiving'], ['office'], ['shipping'], ['east_hall'], ['charger'],
                   ['shipping', 'charger'], ['east_hall', 'west_hall'], ['charger', 'receiving'],
                   ['receiving', 'shipping']]
         return [(dict(suite='v8', cond='route_' + '+'.join(r), stub_targets=r, pallets=[],

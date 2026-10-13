@@ -35,3 +35,10 @@ def test_tracker_reports_error_once():
     pred, meas, err = t.finish(127.0)
     assert (pred, meas, err) == (30.0, 27.0, 3.0)
     assert t.finish(130.0) is None
+
+
+def test_fit_never_returns_negative_stop_time():
+    # 経路長と停止回数が強く相関していても、秒数の係数は負にならない
+    samples = [(1.8, 1, 0, 10.9), (3.4, 1, 0, 14.3), (5.6, 2, 0, 22.4), (6.2, 2, 0, 27.4), (9.0, 3, 0, 39.0)]
+    m = fit(samples)
+    assert m.sec_per_m >= 0 and m.sec_per_stop >= 0 and m.base >= 0
