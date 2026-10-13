@@ -1,0 +1,37 @@
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from eta import LOAD_WAIT, EtaModel, EtaTracker, errors, fit  # noqa: E402
+
+
+def test_predict_adds_distance_stops_and_cargo_wait():
+    m = EtaModel(sec_per_m=3.0, sec_per_stop=2.0, base=1.0)
+    assert m.predict(5.0, 2) == 1.0 + 15.0 + 4.0
+    assert m.predict(5.0, 2, n_cargo=1) == 20.0 + LOAD_WAIT
+
+
+def test_fit_recovers_parameters():
+    truth = EtaModel(sec_per_m=3.5, sec_per_stop=1.5, base=0.5)
+    samples = [(l, n, 0, truth.predict(l, n)) for l, n in [(2, 1), (5, 2), (8, 2), (11, 3), (6, 1), (9, 3)]]
+    m = fit(samples)
+    assert abs(m.sec_per_m - 3.5) < 1e-6 and abs(m.sec_per_stop - 1.5) < 1e-6 and abs(m.base - 0.5) < 1e-6
+    _, mae, mape = errors(m, samples)
+    assert mae < 1e-6 and mape < 1e-6
+
+
+def test_fit_needs_three_samples():
+    try:
+        fit([(1, 1, 0, 5), (2, 1, 0, 8)])
+    except ValueError:
+        return
+    raise AssertionError('ValueError expected')
+
+
+def test_tracker_reports_error_once():
+    t = EtaTracker()
+    assert t.finish(10.0) is None
+    t.start(30.0, 100.0)
+    pred, meas, err = t.finish(127.0)
+    assert (pred, meas, err) == (30.0, 27.0, 3.0)
+    assert t.finish(130.0) is None

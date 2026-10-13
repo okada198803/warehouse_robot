@@ -22,11 +22,24 @@ import time
 
 import ollama
 
+from eta import EtaModel, EtaTracker
 from experience import Experience
 from planner import Planner
 from pointing import PendingInstruction, clear_selection, read_selection
 
 EXPERIENCE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'experience.json')
+
+
+ETA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'eta_model.json')
+
+
+def load_eta_model():
+    """V8 の測定から求めたパラメータ(eta_model.json)があれば使い、なければ既定値。"""
+    try:
+        with open(ETA_FILE, encoding='utf-8') as f:
+            return EtaModel(**json.load(f))
+    except (OSError, ValueError, TypeError):
+        return EtaModel()
 
 
 def make_llm(model):
@@ -49,6 +62,9 @@ class Commander:
         self.verbose = verbose
         self.events = queue.Queue()
         self.pending = PendingInstruction()   # 聞き返し中の指示(指差しが確定したら続行する)
+        self.eta_model = load_eta_model()
+        self.eta = EtaTracker()
+        self.replanned = False
         threading.Thread(target=self.worker, daemon=True).start()
         if link:
             link.on_status(lambda st: self.events.put(('status', st)))
@@ -102,7 +118,15 @@ class Commander:
         if state == 'blocked':   # 誤検知の確認用に、停止位置と判定した通路を表示する
             print(f'    pose={st.get("pose")} near_aisle={st.get("near_aisle")} remaining={st.get("remaining")}'
                   f' cause={st.get("cause")} scan_hits={st.get("scan_hits")}')
+        if state == 'done':
+            res = self.eta.finish(time.time())
+            if res:
+                pred, meas, err = res
+                note = '(再計画後の残り経路)' if self.replanned else ''
+                print(f'    到着時間{note}: 予測 {pred:.0f} 秒 / 実測 {meas:.0f} 秒(誤差 {err:+.0f} 秒)')
+            self.replanned = False
         if state == 'blocked':
+            self.replanned = True
             print(f'[{ts()}] 再計画します ...')
             self.show(self.planner.handle_blocked(st))
 
@@ -116,8 +140,23 @@ class Commander:
             tag = '(経路探索)' if d.source == 'fallback' else ''
             verify = '、'.join(self.planner.places[t]['name'] for t in d.plan.get('verify', []))
             print(f'[{ts()}] 送信{tag}: {d.plan["action"]} {route}' + (f'  (LiDAR で事前確認: {verify})' if verify else ''))
+            self.show_eta(d.plan)
             if self.link:
                 self.link.send_plan(d.plan)
+
+    def show_eta(self, plan):
+        """送る計画の到着時間を予測して表示し、完了時に実測と比べるため覚える。"""
+        if plan.get('action') != 'goto' or plan.get('loops'):
+            return
+        try:
+            targets = plan['targets']
+            _, length = self.planner.checker.check_plan(self.planner._start(), targets, self.planner.blocked)
+            n_cargo = sum(self.planner.places[t].get('kind') == 'cargo' for t in targets[:-1])
+            pred = self.eta_model.predict(length, len(targets), n_cargo)
+        except Exception:
+            return   # 予測できなくても、送信は妨げない
+        self.eta.start(pred, time.time())
+        print(f'    到着予測: 約{pred:.0f} 秒(経路 約{length:.1f} m)')
 
     def simulate_block(self, aisle):
         """--dry-run 用: 通路の手前で立ち往生した報告を作る。"""

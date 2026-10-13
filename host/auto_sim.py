@@ -34,7 +34,7 @@ RESTART = 75
 
 FIELDS = ['suite', 'cond', 'trial', 'ok', 'error', 't_first_blocked', 't_total', 'n_blocked', 'blocks',
           'final_blocked', 'false_register', 'fallback_used', 'first_plan', 'plans', 'llm_calls',
-          'detected_by', 'started_at']
+          'detected_by', 'started_at', 'eta_length', 'eta_stops']
 
 
 class NeedRestart(Exception):
@@ -127,6 +127,7 @@ class Run:
         self.plans = []
         self.fallback = False
         self.llm_calls = 0
+        self.eta_first = None     # 最初に送った計画の (経路長 m, 停止回数)。V8 の予測モデルの入力
 
     def log(self, kind, **kw):
         rec = {'t': round(time.monotonic() - self.t0, 2), 'kind': kind, **kw}
@@ -146,6 +147,12 @@ class Run:
         self.log('decision', label=label, source=d.source, reply=d.reply, plan=d.plan)
         if d.source == 'fallback':
             self.fallback = True
+        if d.plan and self.eta_first is None and d.plan.get('action') == 'goto':
+            try:
+                _, length = self.planner.checker.check_plan(self.planner._start(), d.plan['targets'], self.planner.blocked)
+                self.eta_first = (round(length, 2), len(d.plan['targets']))
+            except Exception:
+                pass
         if d.plan:
             self.plans.append((d.plan.get('targets') or []) if d.plan.get('action') == 'goto' else [])
             self.link.send_plan(d.plan)
@@ -211,7 +218,11 @@ def run_trial(link, hub, spec, trial, args):
     for a in spec.get('pallets', []):
         place_pallet(a)
 
-    base = stub_llm if spec.get('stub') else make_llm(args.model)
+    if spec.get('stub_targets'):    # V8: 指定した地点の計画を返す(経路は planner が最短に補う)
+        def base(messages, schema, _t=list(spec['stub_targets'])):
+            return {'action': 'goto', 'targets': _t, 'blocked_add': [], 'blocked_clear': [], 'reply': '移動します'}
+    else:
+        base = stub_llm if spec.get('stub') else make_llm(args.model)
     calls = [0]
 
     def llm_fn(messages, schema):
@@ -255,6 +266,8 @@ def run_trial(link, hub, spec, trial, args):
         row['first_plan'] = '→'.join(run.plans[0]) if run.plans else ''
         row['plans'] = ' / '.join('→'.join(p) for p in run.plans)
         row['llm_calls'] = calls[0]
+        if run.eta_first:
+            row['eta_length'], row['eta_stops'] = run.eta_first
         row['detected_by'] = (('precheck' if run.blocks and 'precheck' in run.blocks[0]['msg'] else 'stall')
                               if run.blocks else '')
     finally:
@@ -290,6 +303,13 @@ def trials(suite, n):
         return [(dict(suite='v5', cond='south_pallet', precheck=True, pallets=['south_aisle'],
                       script=['出荷口へ行って'], expected_blocked=['south_aisle']), i)
                 for i in range(1, (n or 20) + 1)]
+    if suite == 'v8':    # 到着時間の予測の検証: 障害物なしで、長さの違う経路を走らせて実測する
+        routes = [['west_hall'], ['receiving'], ['office'], ['shipping'], ['east_hall'], ['charger'],
+                  ['shipping', 'charger'], ['east_hall', 'west_hall'], ['charger', 'receiving'],
+                  ['receiving', 'shipping']]
+        return [(dict(suite='v8', cond='route_' + '+'.join(r), stub_targets=r, pallets=[],
+                      script=['指定の経路で移動して'], expected_blocked=[]), i)
+                for i in range(1, (n or 3) + 1) for r in routes]
     raise SystemExit(f'unknown suite {suite}')
 
 
@@ -301,18 +321,23 @@ def load_done(path):
 
 
 def append_row(path, row):
+    """既存の CSV があれば、その見出しの列に合わせて追記する(列を増やした後でも、古い CSV と食い違わない)。"""
     new = not os.path.exists(path)
+    fields = FIELDS
+    if not new:
+        with open(path, encoding='utf-8-sig', newline='') as f:
+            fields = next(csv.reader(f), FIELDS)
     with open(path, 'a', newline='', encoding='utf-8-sig') as f:
-        w = csv.DictWriter(f, fieldnames=FIELDS, extrasaction='ignore')
+        w = csv.DictWriter(f, fieldnames=fields, extrasaction='ignore')
         if new:
             w.writeheader()
-        w.writerow({k: row.get(k, '') for k in FIELDS})
+        w.writerow({k: row.get(k, '') for k in fields})
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--suite', required=True, choices=['v2', 'v3', 'v5'])
-    ap.add_argument('--n', type=int, default=None, help='回数(v2 既定 3 / v3 既定 10 / v5 既定 20)')
+    ap.add_argument('--suite', required=True, choices=['v2', 'v3', 'v5', 'v8'])
+    ap.add_argument('--n', type=int, default=None, help='回数(v2 既定 3 / v3 既定 10 / v5 既定 20 / v8 既定 3)')
     ap.add_argument('--model', default='qwen2.5:7b')
     ap.add_argument('--host', default='localhost')
     ap.add_argument('--max-errors', type=int, default=3, help='連続でこの回数失敗したら再起動を要求する')
@@ -328,7 +353,7 @@ def main():
     if not healthy():
         print('シミュレータが応答しない → 再起動を要求(終了コード 75)')
         return RESTART
-    if not args.suite == 'v2':
+    if args.suite not in ('v2', 'v8'):
         # Ollama の初回遅延を避けるため、先に 1 回呼んで温める
         from llm_commander import make_llm
         make_llm(args.model)([{'role': 'user', 'content': '{}'}], {'type': 'object'})

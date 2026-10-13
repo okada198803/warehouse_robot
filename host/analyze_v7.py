@@ -17,6 +17,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, '..'))
 sys.path.insert(0, os.path.join(ROOT, 'ros2_ws', 'src', 'ai_nav'))
 from ai_nav.plan_logic import aisle_scan_hits, load_places  # noqa: E402
+sys.path.insert(0, HERE)
+from threshold_select import leave_one_group_out, select_threshold  # noqa: E402
 
 PLACES = os.path.join(ROOT, 'ros2_ws', 'src', 'ai_nav', 'config', 'places_warehouse.yaml')
 AISLES = ['south_aisle', 'middle_aisle', 'north_aisle']
@@ -90,6 +92,21 @@ def main():
         tp, np_, fp, nn = rates(0.3, 1.2, thr)
         L.append(f'| {thr} 点 | {tp}/{np_} ({tp / np_:.0%}) | {fp}/{nn} ({fp / nn:.0%}) |' if np_ and nn else f'| {thr} | — | — |')
 
+    # しきい値の自動選択(帯は現行): 記録から選び、位置ごとに除いて選び直した場合の誤りも数える
+    sel_recs = [(r['label'], r['cond'] == a, h) for r, a, h in table[(0.3, 1.2)]
+                if (r['cond'] == a and r['label'].startswith(a)) or r['cond'] != a]
+    spos = [h for _, p, h in sel_recs if p]
+    sneg = [h for _, p, h in sel_recs if not p]
+    if spos and sneg:
+        sel = select_threshold(spos, sneg)
+        cv = leave_one_group_out(sel_recs)
+        L += ['', '## しきい値の自動選択(帯は現行)',
+              f'- 選ばれたしきい値: **{sel.threshold} 点**(現行 {CURRENT["min_hits"]} 点)。'
+              f'パレットなしの最大 {max(sneg)} 点、パレットありの最小 {min(spos)} 点。'
+              f'{"分離できる" if sel.separable else "分離できない(誤りが最小の値)"}。分離の幅 {sel.margin} 点(狭いほど、別の環境では誤りが出やすい)',
+              f'- 全記録での検知漏れ {sel.miss:.1%} / 誤検知 {sel.false:.1%}',
+              f'- 位置ごとに除いて選び直した場合: 検知漏れ {cv["miss"]}/{cv["positives"]}、'
+              f'誤検知 {cv["false"]}/{cv["negatives"]}(選ばれた値の範囲 {min(cv["picks"])}〜{max(cv["picks"])} 点)']
     L += ['', '## 帯の幅(しきい値 3、長さ ±1.2 m)', '| 幅 | 検知率 | 誤検知率 |', '|---|---|---|']
     for hw in widths:
         tp, np_, fp, nn = rates(hw, 1.2, 3)

@@ -1,6 +1,6 @@
 #!/bin/bash
-# Gazebo 検証(V2 / V3 / V5 / V7)を無人で実行する。シミュレータの起動・異常時の再起動も行う。
-#   cd ~/Desktop/pai_final/host && ./run_auto.sh            # v2 v3 v5 v7 を順に実行
+# Gazebo 検証(V2 / V3 / V5 / V7 / V8)を無人で実行する。シミュレータの起動・異常時の再起動も行う。
+#   cd ~/Desktop/pai_final/host && ./run_auto.sh            # v2 v3 v5 v7 v8 を順に実行
 #   ./run_auto.sh v3                                        # 一部だけ(v7 = LiDAR の感度の記録と解析)
 #   N_V3=2 N_V5=2 ./run_auto.sh                             # 試運転(回数を減らす)
 # 事前: Docker Desktop と Ollama を起動しておく。noVNC で手動起動した launch は閉じておく
@@ -11,7 +11,7 @@ cd "$(dirname "$0")"
 HOST_DIR=$(pwd)
 DOCKER_DIR="$HOST_DIR/../docker"
 source .venv/bin/activate
-SUITES=("$@"); [ ${#SUITES[@]} -eq 0 ] && SUITES=(v2 v3 v5 v7)
+SUITES=("$@"); [ ${#SUITES[@]} -eq 0 ] && SUITES=(v2 v3 v5 v7 v8)
 mkdir -p ../docs/auto/logs
 LOG=../docs/auto/logs/run_auto.log
 
@@ -46,7 +46,7 @@ run_v7() {
 run_suite() {
   local s=$1 n_opt=""
   [ "$s" = v7 ] && { run_v7; return $?; }
-  case $s in v3) [ -n "${N_V3:-}" ] && n_opt="--n $N_V3";; v5) [ -n "${N_V5:-}" ] && n_opt="--n $N_V5";; v2) [ -n "${N_V2:-}" ] && n_opt="--n $N_V2";; esac
+  case $s in v3) [ -n "${N_V3:-}" ] && n_opt="--n $N_V3";; v5) [ -n "${N_V5:-}" ] && n_opt="--n $N_V5";; v2) [ -n "${N_V2:-}" ] && n_opt="--n $N_V2";; v8) [ -n "${N_V8:-}" ] && n_opt="--n $N_V8";; esac
   local restarts=0
   while true; do
     python auto_sim.py --suite "$s" $n_opt; rc=$?
@@ -70,5 +70,6 @@ run_suite() {
     run_suite "$s"
   done
   python summarize_auto.py
+  [ -f ../docs/auto/v8.csv ] && python analyze_eta.py
   echo "=== 終了 $(date) ==="
 } 2>&1 | tee -a "$LOG"

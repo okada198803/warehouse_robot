@@ -148,7 +148,7 @@ python gesture_teleop.py              # Mac(自律移動中の非常停止のみ
 
 ```bash
 cd ros2_ws/src/ai_nav && python -m pytest test   # 計画検証・経路検証(31件)
-cd host && python -m pytest tests                # ジェスチャー変換・再計画ループ・検証用ロジック・指差し・荷物搬送(70件)
+cd host && python -m pytest tests                # ジェスチャー変換・再計画ループ・検証用ロジック・指差し・荷物搬送・到着時間の予測・しきい値の選択(79件)
 ```
 
 再計画ループのテストでは、LLM を台本どおりに応答する偽物に置き換えて、次の 5 点を確認している。
@@ -184,7 +184,8 @@ python llm_commander.py --cargo             # Mac: 「あれを出荷口へ運�
 | V2 | フォールバック(スタブ LLM) | `./run_auto.sh v2` | `docs/auto/v2.csv` |
 | V3 | 口頭解除の LiDAR 事前確認 ON/OFF、誤棄却、未確認停止 | `./run_auto.sh v3` | `docs/auto/v3.csv` |
 | V5 | 南パレット → 中央迂回 20 回 | `./run_auto.sh v5` | `docs/auto/v5.csv` |
-| V7 | LiDAR しきい値・帯幅の感度 | `./run_auto.sh v7` | `docs/auto/v7_summary.md` |
+| V7 | LiDAR しきい値・帯幅の感度と、しきい値の自動選択(`threshold_select.py`) | `./run_auto.sh v7` | `docs/auto/v7_summary.md` |
+| V8 | 到着時間の予測と実測の比較(障害物なし 10 経路 × 3 回。経路ごとに除いた当てはめ直しで精度を評価) | `./run_auto.sh v8` | `docs/auto/v8_summary.md` |
 
 - `./run_auto.sh` は Docker と Ollama を起動した Mac で実行する(Gazebo はヘッドレスで自動起動・自動復旧)。
 - LLM は温度 0 のため、同一シナリオの繰り返しは独立でない。回数は傾向の確認用で、統計的有意性を示すものではない。
