@@ -15,29 +15,34 @@ class EtaModel:
     sec_per_m: float = 3.2         # 巡航 約 0.31 m/s 相当(走行中の速度指令は約 0.26 m/s。加減速を含む)
     sec_per_stop: float = 2.5      # 停止(到着・回頭)1 回あたり
     base: float = 0.0
+    load_wait: float = LOAD_WAIT   # 荷物 1 つあたりの追加時間(位置合わせ・積載・再発進)。V8b の実測から当てはめる
 
     def predict(self, length_m, n_stops, n_cargo=0):
-        return self.base + self.sec_per_m * length_m + self.sec_per_stop * n_stops + LOAD_WAIT * n_cargo
+        return self.base + self.sec_per_m * length_m + self.sec_per_stop * n_stops + self.load_wait * n_cargo
 
 
 def fit(samples):
-    """samples: (経路長 m, 停止回数, 荷物地点数, 実測 s) の一覧。最小二乗で sec_per_m・sec_per_stop・base を求める。"""
+    """samples: (経路長 m, 停止回数, 荷物地点数, 実測 s) の一覧。最小二乗で各係数を求める。
+    荷物ありの実測を含むときだけ、荷物 1 つあたりの時間(load_wait)も当てはめる。含まないときは既定値のまま。"""
     import numpy as np
     if len(samples) < 3:
         raise ValueError('3 件以上の実測が必要です')
-    a = np.array([[length, stops, 1.0] for length, stops, _, _ in samples], dtype=float)
-    y = np.array([t - LOAD_WAIT * cargo for _, _, cargo, t in samples], dtype=float)
-    active = [0, 1, 2]                       # 0: 1 m あたり / 1: 停止 1 回あたり / 2: 定数
+    with_cargo = any(c > 0 for _, _, c, _ in samples)
+    a = np.array([[length, stops, 1.0, cargo] for length, stops, cargo, _ in samples], dtype=float)
+    y = np.array([t for *_, t in samples], dtype=float)
+    if not with_cargo:
+        y = y - LOAD_WAIT * np.array([c for _, _, c, _ in samples], dtype=float)
+    active = [0, 1, 2, 3] if with_cargo else [0, 1, 2]    # 0: 1 m あたり / 1: 停止 / 2: 定数 / 3: 荷物
     while True:                              # 負になった係数は 0 に固定して当てはめ直す(秒数は負にならない)
         coef, *_ = np.linalg.lstsq(a[:, active], y, rcond=None)
         neg = [i for i, c in zip(active, coef) if c < 0 and i != 0]
         if not neg or len(active) == 1:
             break
         active.remove(neg[0] if len(neg) == 1 else min(neg, key=lambda i: coef[active.index(i)]))
-    full = [0.0, 0.0, 0.0]
+    full = [0.0, 0.0, 0.0, LOAD_WAIT if not with_cargo else 0.0]
     for i, c in zip(active, coef):
         full[i] = float(c)
-    return EtaModel(*full)
+    return EtaModel(full[0], full[1], full[2], full[3])
 
 
 def errors(model, samples):

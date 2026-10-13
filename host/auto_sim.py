@@ -34,7 +34,7 @@ RESTART = 75
 
 FIELDS = ['suite', 'cond', 'trial', 'ok', 'error', 't_first_blocked', 't_total', 'n_blocked', 'blocks',
           'final_blocked', 'false_register', 'fallback_used', 'first_plan', 'plans', 'llm_calls',
-          'detected_by', 'started_at', 'eta_length', 'eta_stops']
+          'detected_by', 'started_at', 'eta_length', 'eta_stops', 'eta_cargo']
 
 
 class NeedRestart(Exception):
@@ -69,12 +69,21 @@ def robot_xy():
     return (float(m.group(1)), float(m.group(2))) if m else None
 
 
-def soft_reset(link):
+def reset_cargo():
+    """V8b: 箱を初期位置へ戻し、積載の状態を消す(cargo_sim の reset)。"""
+    sh('ros2 topic pub --once /ai/cargo_cmd std_msgs/msg/String "{data: reset}"', timeout=30)
+    time.sleep(1.0)
+
+
+def soft_reset(link, cargo=False):
     """停止 → パレット撤去 → 初期位置へ移動 → コストマップ消去。失敗したら再起動を要求する。"""
     link.send_plan({'action': 'stop'})
     time.sleep(2.0)
     sh('ros2 run ai_nav obstacle clear', timeout=60)
-    hide_cargo()
+    if cargo:
+        reset_cargo()
+    else:
+        hide_cargo()
     req = 'name: \\"LidarRobo4\\" position {x: %.2f y: %.2f z: 0.075} orientation {w: 1.0}' % START
     for _ in range(2):
         sh('ign service -s /world/warehouse/set_pose --reqtype ignition.msgs.Pose '
@@ -165,7 +174,9 @@ class Run:
         if d.plan and self.eta_first is None and d.plan.get('action') == 'goto':
             try:
                 _, length = self.planner.checker.check_plan(self.planner._start(), d.plan['targets'], self.planner.blocked)
-                self.eta_first = (round(length, 2), len(d.plan['targets']))
+                tg = d.plan['targets']
+                n_cargo = sum(self.planner.places[t].get('kind') == 'cargo' for t in tg[:-1])
+                self.eta_first = (round(length, 2), len(tg), n_cargo)
             except Exception:
                 pass
         if d.plan:
@@ -226,7 +237,7 @@ def run_trial(link, hub, spec, trial, args):
     os.makedirs(LOGS, exist_ok=True)
     row = {'suite': spec['suite'], 'cond': spec['cond'], 'trial': trial, 'ok': False, 'error': '',
            'started_at': time.strftime('%Y-%m-%d %H:%M:%S')}
-    soft_reset(link)
+    soft_reset(link, cargo=bool(spec.get('cargo')))
     if spec.get('precheck') is not None:
         set_precheck(spec['precheck'])
     set_param('scan_min_hits', spec.get('scan_min_hits', 3))   # 毎回設定し直す(E で 999 にするため)
@@ -244,7 +255,7 @@ def run_trial(link, hub, spec, trial, args):
         calls[0] += 1
         return base(messages, schema)
 
-    planner = Planner('warehouse', llm_fn)
+    planner = Planner('warehouse', llm_fn, cargo=bool(spec.get('cargo')))
     run = Run(link, planner, os.path.join(LOGS, tag + '.jsonl'))
     hub.run = run
     try:
@@ -282,7 +293,7 @@ def run_trial(link, hub, spec, trial, args):
         row['plans'] = ' / '.join('→'.join(p) for p in run.plans)
         row['llm_calls'] = calls[0]
         if run.eta_first:
-            row['eta_length'], row['eta_stops'] = run.eta_first
+            row['eta_length'], row['eta_stops'], row['eta_cargo'] = run.eta_first
         row['detected_by'] = (('precheck' if run.blocks and 'precheck' in run.blocks[0]['msg'] else 'stall')
                               if run.blocks else '')
     finally:
@@ -325,6 +336,12 @@ def trials(suite, n):
         return [(dict(suite='v8', cond='route_' + '+'.join(r), stub_targets=r, pallets=[],
                       script=['指定の経路で移動して'], expected_blocked=[]), i)
                 for i in range(1, (n or 3) + 1) for r in routes]
+    if suite == 'v8b':   # 荷物ありの到着時間: 箱を積載して運ぶ経路の実測(cargo_sim が必要。箱は見える状態)
+        routes = [['cargo_south', 'shipping'], ['cargo_center', 'shipping'], ['cargo_north', 'shipping'],
+                  ['cargo_south', 'east_hall'], ['cargo_north', 'receiving']]
+        return [(dict(suite='v8b', cond='route_' + '+'.join(r), stub_targets=r, pallets=[], cargo=True,
+                      script=['指定の経路で荷物を運んで'], expected_blocked=[]), i)
+                for i in range(1, (n or 3) + 1) for r in routes]
     raise SystemExit(f'unknown suite {suite}')
 
 
@@ -351,8 +368,8 @@ def append_row(path, row):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--suite', required=True, choices=['v2', 'v3', 'v5', 'v8'])
-    ap.add_argument('--n', type=int, default=None, help='回数(v2 既定 3 / v3 既定 10 / v5 既定 20 / v8 既定 3)')
+    ap.add_argument('--suite', required=True, choices=['v2', 'v3', 'v5', 'v8', 'v8b'])
+    ap.add_argument('--n', type=int, default=None, help='回数(v2 既定 3 / v3 既定 10 / v5 既定 20 / v8・v8b 既定 3)')
     ap.add_argument('--model', default='qwen2.5:7b')
     ap.add_argument('--host', default='localhost')
     ap.add_argument('--max-errors', type=int, default=3, help='連続でこの回数失敗したら再起動を要求する')
@@ -368,7 +385,7 @@ def main():
     if not healthy():
         print('シミュレータが応答しない → 再起動を要求(終了コード 75)')
         return RESTART
-    if args.suite not in ('v2', 'v8'):
+    if args.suite not in ('v2', 'v8', 'v8b'):
         # Ollama の初回遅延を避けるため、先に 1 回呼んで温める
         from llm_commander import make_llm
         make_llm(args.model)([{'role': 'user', 'content': '{}'}], {'type': 'object'})

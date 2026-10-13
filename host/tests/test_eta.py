@@ -42,3 +42,16 @@ def test_fit_never_returns_negative_stop_time():
     samples = [(1.8, 1, 0, 10.9), (3.4, 1, 0, 14.3), (5.6, 2, 0, 22.4), (6.2, 2, 0, 27.4), (9.0, 3, 0, 39.0)]
     m = fit(samples)
     assert m.sec_per_m >= 0 and m.sec_per_stop >= 0 and m.base >= 0
+
+
+def test_fit_learns_cargo_wait_when_cargo_samples_exist():
+    truth = EtaModel(sec_per_m=4.0, sec_per_stop=1.0, base=0.5, load_wait=9.0)
+    samples = [(l, n, c, truth.predict(l, n, c)) for l, n, c in
+               [(3, 1, 0), (6, 2, 0), (9, 2, 0), (6, 2, 1), (12, 3, 1), (7, 2, 1), (10, 3, 1)]]
+    m = fit(samples)
+    assert abs(m.load_wait - 9.0) < 1e-6 and abs(m.sec_per_m - 4.0) < 1e-6
+
+
+def test_fit_keeps_default_cargo_wait_without_cargo_samples():
+    samples = [(l, n, 0, 3.0 * l + n) for l, n in [(2, 1), (5, 2), (8, 2), (11, 3)]]
+    assert fit(samples).load_wait == LOAD_WAIT

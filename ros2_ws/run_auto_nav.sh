@@ -4,4 +4,4 @@
 source /opt/ros/humble/setup.bash
 source /home/ubuntu/ros2_ws/install/setup.bash
 echo $$ > /tmp/nav.pid
-exec ros2 launch ai_nav ai_nav.launch.py gz_gui:=false rviz:=false > /tmp/nav.log 2>&1
+exec ros2 launch ai_nav ai_nav.launch.py gz_gui:=false rviz:=false "$@" > /tmp/nav.log 2>&1
