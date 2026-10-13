@@ -71,12 +71,12 @@ class PlanExecutor(Node):
         self.get_logger().info(f'loaded {len(self.places)} places')
 
         self.nav_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
-        self.status_pub = self.create_publisher(String, '/ai/status', 10)
-        self.cmd_pub = self.create_publisher(Twist, '/cmd_vel', 10)
-        self.create_subscription(String, '/ai/plan', self.on_plan, 10)
+        self.status_pub = self.create_publisher(String, 'ai/status', 10)
+        self.cmd_pub = self.create_publisher(Twist, 'cmd_vel', 10)
+        self.create_subscription(String, 'ai/plan', self.on_plan, 10)
         self.create_timer(1.0, self.watchdog)
-        self.create_subscription(Odometry, '/odom', self.on_odom, 10)
-        self.create_subscription(LaserScan, '/scan', self.on_scan, qos_profile_sensor_data)
+        self.create_subscription(Odometry, 'odom', self.on_odom, 10)
+        self.create_subscription(LaserScan, 'scan', self.on_scan, qos_profile_sensor_data)
         self.create_timer(0.1, self.retreat_tick)
 
         self.queue = []          # 残りの地点 id(先頭が現在の目的地)
