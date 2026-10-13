@@ -48,6 +48,9 @@ run_v7() {
 
 run_suite() {
   local s=$1 n_opt=""
+  if [ "$s" != v8b ] && dexec "source /opt/ros/humble/setup.bash && source /home/ubuntu/ros2_ws/install/setup.bash && ros2 node list 2>/dev/null | grep -q cargo_sim"; then
+    CARGO_SIM=0; hard_restart || return 1      # 荷物の模擬が動いたままなら、荷物なしの構成で起動し直す
+  fi
   if [ "$s" = v8b ]; then      # 荷物の模擬(cargo_sim)付きで起動し直す
     CARGO_SIM=1
     dexec "source /opt/ros/humble/setup.bash && source /home/ubuntu/ros2_ws/install/setup.bash && ros2 node list 2>/dev/null | grep -q cargo_sim" || hard_restart || return 1
