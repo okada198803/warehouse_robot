@@ -2,7 +2,7 @@
 
     ./ros_exec.sh python3 /home/ubuntu/ros2_ws/src/ai_nav/tools/check_aisle_scan.py
 
-パレットのある通路は scan_min_hits(既定 3)以上、ない通路は 0 付近になるはず。
+パレットのある通路は scan_min_hits(既定 16)以上、ない通路は 0 付近になるはず。
 """
 import math
 import os

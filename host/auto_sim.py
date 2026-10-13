@@ -240,7 +240,7 @@ def run_trial(link, hub, spec, trial, args):
     soft_reset(link, cargo=bool(spec.get('cargo')))
     if spec.get('precheck') is not None:
         set_precheck(spec['precheck'])
-    set_param('scan_min_hits', spec.get('scan_min_hits', 3))   # 毎回設定し直す(E で 999 にするため)
+    set_param('scan_min_hits', spec.get('scan_min_hits', 16))   # 毎回設定し直す(E で 999 にするため)
     for a in spec.get('pallets', []):
         place_pallet(a)
 

@@ -51,7 +51,7 @@ class PlanExecutor(Node):
         self.retreat_dist = self.get_parameter('retreat_dist').value
         self.retreat_clear = self.get_parameter('retreat_clear').value
         # LiDAR による通路の確認(停止原因の分類と、口頭で解除された通路の事前確認)
-        self.declare_parameter('scan_min_hits', 3)         # 帯に入る点がこの数以上なら障害物あり
+        self.declare_parameter('scan_min_hits', 16)        # 帯に入る点がこの数以上なら障害物あり(V7 から自動選択。旧 3)
         self.declare_parameter('aisle_half_length', 1.2)   # [m] 通路中心から前後に見る長さ
         self.declare_parameter('aisle_half_width', 0.3)    # [m] 通路中心線から左右に見る幅(壁を数えない)
         self.declare_parameter('precheck', True)           # 口頭解除された通路の事前確認
