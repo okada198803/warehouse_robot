@@ -22,7 +22,7 @@ from threshold_select import leave_one_group_out, select_threshold  # noqa: E402
 
 PLACES = os.path.join(ROOT, 'ros2_ws', 'src', 'ai_nav', 'config', 'places_warehouse.yaml')
 AISLES = ['south_aisle', 'middle_aisle', 'north_aisle']
-CURRENT = dict(half_width=0.3, half_length=1.2, min_hits=3)
+CURRENT = dict(half_width=0.3, half_length=1.2, min_hits=16)   # 本番の値(2026-10-13 に 3 → 16。旧 3 は、しきい値の表の 3 点の行で比較できる)
 
 
 def hits_of(rec, aisle, places, hw, hl):
@@ -39,7 +39,7 @@ def main():
     places = load_places(PLACES)
     widths = [0.2, 0.3, 0.4, 0.5]
     lengths = [0.8, 1.2, 1.6]
-    thresholds = [1, 3, 8, 12, 15, 17, 20]
+    thresholds = [1, 3, 8, 12, 15, 16, 17, 20]
 
     # (hw, hl) ごとに、全記録 × 全通路の点数を一度だけ計算する
     table = {}
@@ -107,15 +107,15 @@ def main():
               f'- 全記録での検知漏れ {sel.miss:.1%} / 誤検知 {sel.false:.1%}',
               f'- 位置ごとに除いて選び直した場合: 検知漏れ {cv["miss"]}/{cv["positives"]}、'
               f'誤検知 {cv["false"]}/{cv["negatives"]}(選ばれた値の範囲 {min(cv["picks"])}〜{max(cv["picks"])} 点)']
-    L += ['', '## 帯の幅(しきい値 3、長さ ±1.2 m)', '| 幅 | 検知率 | 誤検知率 |', '|---|---|---|']
+    L += ['', f'## 帯の幅(しきい値 {CURRENT["min_hits"]}、長さ ±1.2 m)', '| 幅 | 検知率 | 誤検知率 |', '|---|---|---|']
     for hw in widths:
-        tp, np_, fp, nn = rates(hw, 1.2, 3)
+        tp, np_, fp, nn = rates(hw, 1.2, CURRENT['min_hits'])
         if np_ and nn:
             L.append(f'| ±{hw} m | {tp}/{np_} ({tp / np_:.0%}) | {fp}/{nn} ({fp / nn:.0%}) |')
 
-    L += ['', '## 帯の長さ(しきい値 3、幅 ±0.3 m)', '| 長さ | 検知率 | 誤検知率 |', '|---|---|---|']
+    L += ['', f'## 帯の長さ(しきい値 {CURRENT["min_hits"]}、幅 ±0.3 m)', '| 長さ | 検知率 | 誤検知率 |', '|---|---|---|']
     for hl in lengths:
-        tp, np_, fp, nn = rates(0.3, hl, 3)
+        tp, np_, fp, nn = rates(0.3, hl, CURRENT['min_hits'])
         if np_ and nn:
             L.append(f'| ±{hl} m | {tp}/{np_} ({tp / np_:.0%}) | {fp}/{nn} ({fp / nn:.0%}) |')
 
@@ -128,11 +128,11 @@ def main():
               if r['cond'] == a and r['label'].startswith(a) and r['robot'][0] < places[a]['x'] and lo <= places[a]['x'] - r['robot'][0] < hi]
         if hs:
             hs_sorted = sorted(hs)
-            L.append(f'| {lo}〜{hi} m | {sum(h >= 3 for h in hs)}/{len(hs)} | {hs_sorted[len(hs) // 2]} |')
+            L.append(f'| {lo}〜{hi} m | {sum(h >= CURRENT["min_hits"] for h in hs)}/{len(hs)} | {hs_sorted[len(hs) // 2]} |')
 
     # 誤検知の内訳(あれば)
-    bad = [(r['cond'], r['label'], a, h) for r, a, h in table[(0.3, 1.2)] if r['cond'] != a and h >= 3]
-    L += ['', '## 現行設定での誤検知(パレットがないのに 3 点以上)']
+    bad = [(r['cond'], r['label'], a, h) for r, a, h in table[(0.3, 1.2)] if r['cond'] != a and h >= CURRENT['min_hits']]
+    L += ['', f'## 現行設定での誤検知(パレットがないのに {CURRENT["min_hits"]} 点以上)']
     L += [f'- パレット={c} / 位置={lab} / 判定した通路={a} / {h} 点' for c, lab, a, h in bad[:20]] or ['- なし']
     text = '\n'.join(L)
     print(text)

@@ -1,0 +1,4 @@
+﻿suite,cond,trial,ok,error,t_first_blocked,t_total,n_blocked,blocks,final_blocked,false_register,fallback_used,first_plan,plans,llm_calls,detected_by,started_at,eta_length,eta_stops,eta_cargo
+v2,fallback,1,True,,,31.9,0,[],south_aisle,False,True,middle_aisle→shipping,middle_aisle→shipping,3,,2026-10-13 19:29:53,7.54,2,0
+v2,fallback,2,True,,,31.7,0,[],south_aisle,False,True,middle_aisle→shipping,middle_aisle→shipping,3,,2026-10-13 19:30:40,7.54,2,0
+v2,fallback,3,True,,,31.9,0,[],south_aisle,False,True,middle_aisle→shipping,middle_aisle→shipping,3,,2026-10-13 19:31:27,7.54,2,0
