@@ -1,0 +1,26 @@
+﻿suite,cond,trial,ok,error,t_first_blocked,t_total,n_blocked,blocks,final_blocked,false_register,fallback_used,first_plan,plans,llm_calls,detected_by,started_at,eta_length,eta_stops,eta_cargo
+v8b,route_cargo_south+shipping,1,True,,,29.4,0,[],,False,False,cargo_south→south_aisle→shipping,cargo_south→south_aisle→shipping,1,,2026-10-13 18:55:51,6.36,3,1
+v8b,route_cargo_center+shipping,1,True,,,40.3,0,[],,False,False,cargo_center→middle_aisle→shipping,cargo_center→middle_aisle→shipping,1,,2026-10-13 18:56:35,8.04,3,1
+v8b,route_cargo_north+shipping,1,True,,,43.7,0,[],,False,False,cargo_north→middle_aisle→shipping,cargo_north→middle_aisle→shipping,1,,2026-10-13 18:57:27,9.34,3,1
+v8b,route_cargo_south+east_hall,1,True,,,34.7,0,[],,False,False,cargo_south→middle_aisle→east_hall,cargo_south→middle_aisle→east_hall,1,,2026-10-13 18:58:24,6.28,3,1
+v8b,route_cargo_north+receiving,1,True,,,30.5,0,[],,False,False,cargo_north→receiving,cargo_north→receiving,1,,2026-10-13 18:59:13,5.45,2,1
+v8b,route_cargo_south+shipping,2,True,,,29.8,0,[],,False,False,cargo_south→south_aisle→shipping,cargo_south→south_aisle→shipping,1,,2026-10-13 18:59:57,6.36,3,1
+v8b,route_cargo_center+shipping,2,True,,,40.5,0,[],,False,False,cargo_center→middle_aisle→shipping,cargo_center→middle_aisle→shipping,1,,2026-10-13 19:00:42,8.04,3,1
+v8b,route_cargo_north+shipping,2,True,,,43.5,0,[],,False,False,cargo_north→middle_aisle→shipping,cargo_north→middle_aisle→shipping,1,,2026-10-13 19:01:37,9.34,3,1
+v8b,route_cargo_south+east_hall,2,True,,,34.7,0,[],,False,False,cargo_south→middle_aisle→east_hall,cargo_south→middle_aisle→east_hall,1,,2026-10-13 19:03:11,6.28,3,1
+v8b,route_cargo_north+receiving,2,True,,,43.0,0,[],,False,False,cargo_north→receiving,cargo_north→receiving,1,,2026-10-13 19:03:59,5.45,2,1
+v8b,route_cargo_south+shipping,3,True,,,29.9,0,[],,False,False,cargo_south→south_aisle→shipping,cargo_south→south_aisle→shipping,1,,2026-10-13 19:04:55,6.36,3,1
+v8b,route_cargo_center+shipping,3,True,,,40.4,0,[],,False,False,cargo_center→middle_aisle→shipping,cargo_center→middle_aisle→shipping,1,,2026-10-13 19:05:42,8.04,3,1
+v8b,route_cargo_north+shipping,3,True,,,43.7,0,[],,False,False,cargo_north→middle_aisle→shipping,cargo_north→middle_aisle→shipping,1,,2026-10-13 19:06:36,9.34,3,1
+v8b,route_cargo_south+east_hall,3,True,,,34.6,0,[],,False,False,cargo_south→middle_aisle→east_hall,cargo_south→middle_aisle→east_hall,1,,2026-10-13 19:07:33,6.28,3,1
+v8b,route_cargo_north+receiving,3,True,,,30.7,0,[],,False,False,cargo_north→receiving,cargo_north→receiving,1,,2026-10-13 19:08:22,5.45,2,1
+v8b,route_cargo_south+shipping,4,True,,,30.0,0,[],,False,False,cargo_south→south_aisle→shipping,cargo_south→south_aisle→shipping,1,,2026-10-13 19:09:44,6.36,3,1
+v8b,route_cargo_center+shipping,4,True,,,40.3,0,[],,False,False,cargo_center→middle_aisle→shipping,cargo_center→middle_aisle→shipping,1,,2026-10-13 19:10:29,8.04,3,1
+v8b,route_cargo_north+shipping,4,True,,,43.7,0,[],,False,False,cargo_north→middle_aisle→shipping,cargo_north→middle_aisle→shipping,1,,2026-10-13 19:11:24,9.34,3,1
+v8b,route_cargo_south+east_hall,4,True,,,34.7,0,[],,False,False,cargo_south→middle_aisle→east_hall,cargo_south→middle_aisle→east_hall,1,,2026-10-13 19:12:21,6.28,3,1
+v8b,route_cargo_north+receiving,4,True,,,39.2,0,[],,False,False,cargo_north→receiving,cargo_north→receiving,1,,2026-10-13 19:13:11,5.45,2,1
+v8b,route_cargo_south+shipping,5,True,,,30.3,0,[],,False,False,cargo_south→south_aisle→shipping,cargo_south→south_aisle→shipping,1,,2026-10-13 19:14:05,6.36,3,1
+v8b,route_cargo_center+shipping,5,True,,,40.5,0,[],,False,False,cargo_center→middle_aisle→shipping,cargo_center→middle_aisle→shipping,1,,2026-10-13 19:14:51,8.04,3,1
+v8b,route_cargo_north+shipping,5,True,,,43.6,0,[],,False,False,cargo_north→middle_aisle→shipping,cargo_north→middle_aisle→shipping,1,,2026-10-13 19:15:49,9.34,3,1
+v8b,route_cargo_south+east_hall,5,True,,,34.8,0,[],,False,False,cargo_south→middle_aisle→east_hall,cargo_south→middle_aisle→east_hall,1,,2026-10-13 19:16:46,6.28,3,1
+v8b,route_cargo_north+receiving,5,True,,,30.4,0,[],,False,False,cargo_north→receiving,cargo_north→receiving,1,,2026-10-13 19:17:35,5.45,2,1
