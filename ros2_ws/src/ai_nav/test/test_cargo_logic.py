@@ -21,9 +21,9 @@ def test_cargo_places_defined():
     assert sorted(ids) == ['cargo_center', 'cargo_north', 'cargo_south']
     for pid in ids:
         b = PLACES[pid]['box']
-        # 箱は到着地点の 0.6 m 先
-        assert math.dist((PLACES[pid]['x'], PLACES[pid]['y']), (b['x'], b['y'])) == 0.6 or \
-            abs(math.dist((PLACES[pid]['x'], PLACES[pid]['y']), (b['x'], b['y'])) - 0.6) < 1e-9
+        # 箱は到着地点の 0.5〜0.6 m 先(ホール車線から外した位置)
+        d = math.dist((PLACES[pid]['x'], PLACES[pid]['y']), (b['x'], b['y']))
+        assert 0.5 - 1e-9 <= d <= 0.6 + 1e-9
 
 
 def test_boxes_stay_out_of_aisle_scan_bands():

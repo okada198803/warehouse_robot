@@ -89,7 +89,7 @@ places:
     x: 1.1
     y: 3.4
     yaw: 0.0
-    box: {x: 1.7, y: 3.4}
+    box: {x: 0.5, y: 3.4}
   cargo_center:
     name: 中央の荷物
     aliases: [真ん中の荷物, 中の荷物]
@@ -98,7 +98,7 @@ places:
     x: 1.0
     y: 2.5
     yaw: 0.0
-    box: {x: 1.6, y: 2.5}
+    box: {x: 0.5, y: 2.5}
   cargo_south:
     name: 南の荷物
     aliases: [南側の荷物, 右の荷物]
@@ -107,4 +107,4 @@ places:
     x: 1.1
     y: 1.6
     yaw: 0.0
-    box: {x: 1.7, y: 1.6}
+    box: {x: 0.5, y: 1.6}

@@ -487,7 +487,7 @@
     </model>
     <model name="cargo_north">
       <static>false</static>
-      <pose>1.7 3.4 0.1 0 0 0</pose>
+      <pose>0.5 3.4 0.1 0 0 0</pose>
       <link name="link">
         <gravity>false</gravity>
         <visual name="visual">
@@ -498,7 +498,7 @@
     </model>
     <model name="cargo_center">
       <static>false</static>
-      <pose>1.6 2.5 0.1 0 0 0</pose>
+      <pose>0.5 2.5 0.1 0 0 0</pose>
       <link name="link">
         <gravity>false</gravity>
         <visual name="visual">
@@ -509,7 +509,7 @@
     </model>
     <model name="cargo_south">
       <static>false</static>
-      <pose>1.7 1.6 0.1 0 0 0</pose>
+      <pose>0.5 1.6 0.1 0 0 0</pose>
       <link name="link">
         <gravity>false</gravity>
         <visual name="visual">
