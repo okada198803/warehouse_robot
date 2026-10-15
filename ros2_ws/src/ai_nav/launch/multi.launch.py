@@ -12,11 +12,11 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction,
-                            SetEnvironmentVariable, TimerAction)
+from launch.actions import (DeclareLaunchArgument, GroupAction, IncludeLaunchDescription,
+                            OpaqueFunction, SetEnvironmentVariable, TimerAction)
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
+from launch_ros.actions import Node, PushRosNamespace
 
 from ai_nav.multi_gen import (ROBOTS, bridge_yaml, namespaced_sdf, relative_nav2_params,
                               tf_remaps)
@@ -90,11 +90,15 @@ def setup(context):
             package='nav2_lifecycle_manager', executable='lifecycle_manager',
             name='lifecycle_manager_map', namespace=ns, output='screen',
             parameters=[{'use_sim_time': True, 'autostart': True, 'node_names': ['map_server']}]))
-        delayed.append(IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(os.path.join(
-                get_package_share_directory('nav2_bringup'), 'launch', 'navigation_launch.py')),
-            launch_arguments={'namespace': ns, 'use_sim_time': 'true',
-                              'params_file': params_file, 'autostart': 'true'}.items()))
+        # navigation_launch.py の namespace 引数はパラメータの読み込み用で、ノードの名前空間は
+        # 付かない(bringup_launch.py と同様に PushRosNamespace で包む必要がある)
+        delayed.append(GroupAction([
+            PushRosNamespace(ns),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(os.path.join(
+                    get_package_share_directory('nav2_bringup'), 'launch', 'navigation_launch.py')),
+                launch_arguments={'namespace': ns, 'use_sim_time': 'true',
+                                  'params_file': params_file, 'autostart': 'true'}.items())]))
         delayed.append(Node(
             package='ai_nav', executable='plan_executor', namespace=ns, output='screen',
             parameters=[{'use_sim_time': True, 'places_file': places}]))
