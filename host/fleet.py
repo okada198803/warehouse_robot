@@ -123,7 +123,7 @@ def central_prompt(planners, dests, notes_extra=''):
             problems, length = p.checker.check_plan(start, [a, d], set())
             if not problems:
                 dist.append(f'{p.places[a]["name"]}({a}) {length:.1f}m')
-        lines.append(f'{n}: 現在地 {p.places[home]["name"] if home in p.places else home} → 目的地 {p.places[d]["name"]}'
+        lines.append(f'{n}: 現在地 {p.places[home]["name"] if home in p.places else "座標(%.1f, %.1f)" % tuple(_xy(p, start))} → 目的地 {p.places[d]["name"]}'
                      f'({direction})。経由する通路ごとの距離: {" / ".join(dist)}')
     return '\n'.join(lines) + notes_extra
 
