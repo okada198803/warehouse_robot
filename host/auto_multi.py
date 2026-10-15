@@ -259,18 +259,23 @@ def append_row(path, row):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--cond', required=True, choices=['C0', 'C1', 'C3'])
+    ap.add_argument('--conds', '--cond', dest='conds', default='C0',
+                    help='条件をカンマ区切りで。試行は条件を交互に実行する(例 C3,C1)')
     ap.add_argument('--n', type=int, default=10)
     ap.add_argument('--host', default='localhost')
-    ap.add_argument('--model', default='qwen2.5:7b', help='C1 の統制 LLM')
     ap.add_argument('--max-errors', type=int, default=3)
+    ap.add_argument('--model', default='qwen2.5:7b', help='C1 の統制 LLM')
     args = ap.parse_args()
+    conds = [c for c in args.conds.split(',') if c]
+    for c in conds:
+        if c not in ('C0', 'C1', 'C3'):
+            raise SystemExit(f'unknown condition {c}')
 
     os.makedirs(OUT, exist_ok=True)
-    path = os.path.join(OUT, f'{args.cond}.csv')
-    done = load_done(path)
-    todo = [i for i in range(1, args.n + 1) if i not in done]
-    print(f'[{args.cond}] 残り {len(todo)} 試行', flush=True)
+    paths = {c: os.path.join(OUT, f'{c}.csv') for c in conds}
+    done = {c: load_done(paths[c]) for c in conds}
+    todo = [(c, i) for i in range(1, args.n + 1) for c in conds if i not in done[c]]   # 試行番号ごとに条件を交互に
+    print(f'[{",".join(conds)}] 残り {len(todo)} 試行', flush=True)
     if not todo:
         return 0
     if not healthy():
@@ -280,19 +285,19 @@ def main():
     from ros_link import RosLink
     links = {ns: RosLink(args.host, PORT, ns=ns) for ns in ROBOTS}
     tr = Tracker(links)
-    chans = {ns: PeerChannel(links[ns].ros, ns) for ns in ROBOTS} if args.cond == 'C3' else None
+    chans = {ns: PeerChannel(links[ns].ros, ns) for ns in ROBOTS} if 'C3' in conds else None
     llm = None
-    if args.cond == 'C1':
+    if 'C1' in conds:
         from llm_commander import make_llm
         llm = make_llm(args.model)
         llm([{'role': 'user', 'content': '{}'}], {'type': 'object'})     # Ollama の初回遅延を避ける
     time.sleep(2.0)
     consecutive = 0
     try:
-        for i in todo:
-            print(f'[{time.strftime("%H:%M:%S")}] {args.cond} #{i} ...', flush=True)
+        for cond, i in todo:
+            print(f'[{time.strftime("%H:%M:%S")}] {cond} #{i} ...', flush=True)
             try:
-                row = run_trial(links, tr, args.cond, i, chans, llm)
+                row = run_trial(links, tr, cond, i, chans, llm)
             except A.NeedRestart as e:
                 print(f'  再起動が必要: {e}', flush=True)
                 return RESTART
@@ -302,9 +307,10 @@ def main():
                 if consecutive >= args.max_errors:
                     return RESTART
                 continue
-            append_row(path, row)
-            print(f'  ok_both={row["ok_both"]} t={row["t_both"]} avoid=({row["avoid_r1"]},{row["avoid_r2"]}) blocked=({row["n_blocked_r1"]},'
-                  f'{row["n_blocked_r2"]}) false_reg=({row["false_reg_r1"]},{row["false_reg_r2"]}) '
+            append_row(paths[cond], row)
+            print(f'  ok_both={row["ok_both"]} t={row["t_both"]} avoid=({row["avoid_r1"]},{row["avoid_r2"]}) '
+                  f'blocked=({row["n_blocked_r1"]},{row["n_blocked_r2"]}) '
+                  f'false_reg=({row["false_reg_r1"]},{row["false_reg_r2"]}) '
                   f'min_dist={row["min_dist"]} {row["error"]}', flush=True)
             consecutive = 0
     finally:
