@@ -37,4 +37,7 @@ class RosLink:
                 t.unadvertise() if t is not self.status else t.unsubscribe()
             except Exception:
                 pass
-        self.ros.terminate()
+        try:
+            self.ros.terminate()
+        except AttributeError:
+            pass   # roslibpy は 1 プロセスで複数接続を閉じると例外を出す(終了処理のみ。無害)
