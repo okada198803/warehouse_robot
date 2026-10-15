@@ -11,7 +11,7 @@ import time
 
 import roslibpy
 
-from ros_link import RosLink
+from ros_link_ns import NsLink as RosLink
 
 GOALS = {'r1': 'shipping', 'r2': 'receiving'}
 

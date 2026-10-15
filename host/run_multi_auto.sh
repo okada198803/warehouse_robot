@@ -9,7 +9,8 @@
 set -u
 cd "$(dirname "$0")"
 DOCKER_DIR="$(pwd)/../docker"
-source ../../host/.venv/bin/activate
+export COMPOSE_FILE=compose.multi.yaml     # multi 用コンテナ(pai-ros-multi)。docker compose と ros_exec.sh がこれを使う
+if [ -f .venv/bin/activate ]; then source .venv/bin/activate; else source ../../host/.venv/bin/activate; fi   # main では host/.venv、ワークツリーでは main 側のもの
 CONDS=${1:-C3,C1}
 N=${N:-10}
 mkdir -p ../docs/multi/logs

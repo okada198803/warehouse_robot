@@ -99,9 +99,12 @@ def setup(context):
                     get_package_share_directory('nav2_bringup'), 'launch', 'navigation_launch.py')),
                 launch_arguments={'namespace': ns, 'use_sim_time': 'true',
                                   'params_file': params_file, 'autostart': 'true'}.items())]))
+        # plan_executor は絶対名(/ai/plan など)で購読するため、名前空間の中へ付け替える(コードは変更しない)
         delayed.append(Node(
             package='ai_nav', executable='plan_executor', namespace=ns, output='screen',
-            parameters=[{'use_sim_time': True, 'places_file': places}]))
+            parameters=[{'use_sim_time': True, 'places_file': places}],
+            remappings=[('/ai/plan', 'ai/plan'), ('/ai/status', 'ai/status'), ('/cmd_vel', 'cmd_vel'),
+                        ('/odom', 'odom'), ('/scan', 'scan')]))
 
     # 全ロボット共通の rosbridge(Mac 側 Python から /<ns>/ai/plan などに接続する)
     actions.append(Node(package='rosbridge_server', executable='rosbridge_websocket',

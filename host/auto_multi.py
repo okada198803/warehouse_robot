@@ -293,7 +293,7 @@ def main():
         print('シミュレータが応答しない → 再起動を要求(終了コード 75)')
         return RESTART
 
-    from ros_link import RosLink
+    from ros_link_ns import NsLink as RosLink
     links = {ns: RosLink(args.host, PORT, ns=ns) for ns in ROBOTS}
     tr = Tracker(links)
     chans = {ns: PeerChannel(links[ns].ros, ns) for ns in ROBOTS} if 'C3' in conds else None

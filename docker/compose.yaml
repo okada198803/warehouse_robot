@@ -1,16 +1,15 @@
-name: pai_multi   # 単体構成(pai-ros)とは別プロジェクト・別コンテナ。同時には起動しない(負荷のため)
 services:
   ros:
     build: .
     image: pai-final-ros:humble
-    container_name: pai-ros-multi
+    container_name: pai-ros
     platform: linux/arm64
     shm_size: "2gb"
     security_opt:
       - seccomp:unconfined   # Gazebo の GUI が真っ黒になる場合の対策
     ports:
-      - "6081:80"      # noVNC (ブラウザで http://localhost:6081)
-      - "9091:9090"    # rosbridge(複数ロボット検証用。単体構成の 9090 と衝突させない)
+      - "6080:80"      # noVNC (ブラウザで http://localhost:6080)
+      - "9090:9090"    # rosbridge (Mac 側 Python から接続)
     environment:
       - RESOLUTION=1600x900
     volumes:
