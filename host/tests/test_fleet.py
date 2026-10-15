@@ -57,31 +57,36 @@ def test_check_assignment_detects_remaining_conflict():
     assert not problems
 
 
+def route(r1, r2):
+    return {'route': {'r1': r1, 'r2': r2}, 'reason': 'x'}
+
+
 def test_central_assign_accepts_valid_answer():
     ps = pair()
-    avoid, info = central_assign(lambda m, s: {'avoid': {'r1': [], 'r2': ['south_aisle']}, 'reason': 'x'}, ps, DESTS)
-    assert info['valid'] and info['calls'] == 1 and avoid['r2'] == {'south_aisle'}
+    avoid, info = central_assign(lambda m, s: route('south_aisle', 'middle_aisle'), ps, DESTS)
+    assert info['valid'] and info['calls'] == 1
+    assert avoid['r2'] == {'south_aisle', 'north_aisle'} and avoid['r1'] == {'middle_aisle', 'north_aisle'}
+    assert info['raw']
 
 
 def test_central_assign_retries_then_falls_back():
     ps = pair()
-    avoid, info = central_assign(lambda m, s: {'avoid': {'r1': [], 'r2': []}, 'reason': 'x'}, ps, DESTS)
+    avoid, info = central_assign(lambda m, s: route('south_aisle', 'south_aisle'), ps, DESTS)
     assert not info['valid'] and info['calls'] == 3
     assert avoid == {'r1': set(), 'r2': set()}
 
 
 def test_central_assign_recovers_after_feedback():
     ps = pair()
-    answers = iter([{'avoid': {'r1': [], 'r2': []}, 'reason': 'a'},
-                    {'avoid': {'r1': ['south_aisle'], 'r2': []}, 'reason': 'b'}])
+    answers = iter([route('south_aisle', 'south_aisle'), route('middle_aisle', 'south_aisle')])
     avoid, info = central_assign(lambda m, s: next(answers), ps, DESTS)
-    assert info['valid'] and info['calls'] == 2 and avoid['r1'] == {'south_aisle'}
+    assert info['valid'] and info['calls'] == 2
+    assert 'south_aisle' in avoid['r1'] and 'south_aisle' not in avoid['r2']
 
 
-def test_central_assign_rejects_all_aisles_avoided():
+def test_central_assign_rejects_bad_aisle_id():
     ps = pair()
-    allp = ['south_aisle', 'middle_aisle', 'north_aisle']
-    avoid, info = central_assign(lambda m, s: {'avoid': {'r1': [], 'r2': allp}, 'reason': 'x'}, ps, DESTS)
+    avoid, info = central_assign(lambda m, s: route('nowhere', 'south_aisle'), ps, DESTS)
     assert not info['valid']
 
 

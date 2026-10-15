@@ -94,22 +94,23 @@ class PeerChannel:
 
 
 # ---------- C1: 統制 LLM ----------
+# 第 1 版は「避ける通路」を台ごとに出力させたが、検証に通る出力が 30 回中 0 回だった(docs/multi/C1a.csv)。
+# 第 2 版は「各ロボットが通る通路」を 1 つずつ出力させ、避ける通路(それ以外)はコードで導く。
 def central_schema(names, aisles):
-    return {'type': 'object', 'required': ['avoid', 'reason'], 'additionalProperties': False,
+    return {'type': 'object', 'required': ['route', 'reason'], 'additionalProperties': False,
             'properties': {
-                'avoid': {'type': 'object', 'required': list(names), 'additionalProperties': False,
-                          'properties': {n: {'type': 'array', 'items': {'type': 'string', 'enum': list(aisles)}}
-                                         for n in names}},
+                'route': {'type': 'object', 'required': list(names), 'additionalProperties': False,
+                          'properties': {n: {'type': 'string', 'enum': list(aisles)} for n in names}},
                 'reason': {'type': 'string'}}}
 
 
 def central_prompt(planners, dests, notes_extra=''):
     names = list(planners)
-    ref = planners[names[0]]
     lines = ['複数のロボットが倉庫内を同時に移動する。西ホールと東ホールは 南通路(幅0.9m)・中央通路(幅0.8m)・北通路(幅0.9m)'
              'の3本だけでつながり、どの通路も1台しか通れない。逆向きに進む2台が同じ通路に入ると行き違えず立ち往生する。',
-             '各ロボットの現在地・目的地・通路ごとの距離を見て、立ち往生しないように、各ロボットが避ける通路を決めよ。',
-             '避ける必要がなければ空にする。遠回りは時間が増えるので、避けさせる通路は必要最小限にする。', '']
+             '各ロボットの現在地・目的地・通路ごとの距離を見て、立ち往生しないように、各ロボットが通る通路を1つずつ決めよ。',
+             '逆向きのロボット同士は別の通路にする。同じ向きなら同じ通路でもよい。遠回りは時間が増えるので、'
+             '全員が最短の通路で衝突しないならそのままにする。', '']
     for n in names:
         p = planners[n]
         start = p._start()
@@ -140,27 +141,31 @@ def check_assignment(planners, dests, avoid):
 
 
 def central_assign(llm_fn, planners, dests, max_retries=2):
-    """統制 LLM に避ける通路を割り当てさせる。(avoid, 情報 dict)。検証に通らなければ avoid は空(協調なし)。"""
+    """統制 LLM に各ロボットの通路を割り当てさせる。(avoid, 情報 dict)。検証に通らなければ avoid は空(協調なし)。"""
     names = list(planners)
     aisles = list(planners[names[0]].aisles)
     schema = central_schema(names, aisles)
     messages = [{'role': 'system', 'content': '倉庫の複数ロボットを統制する。出力は JSON のみ。'},
                 {'role': 'user', 'content': central_prompt(planners, dests)}]
-    info = {'calls': 0, 'valid': False, 'reason': '', 'problems': []}
+    info = {'calls': 0, 'valid': False, 'reason': '', 'problems': [], 'raw': []}
     for _ in range(max_retries + 1):
         info['calls'] += 1
         try:
             out = llm_fn(messages, schema)
-            avoid = {n: set(out.get('avoid', {}).get(n, [])) & set(aisles) for n in names}
+            info['raw'].append(out)
+            route = out.get('route', {})
+            # 割り当てた通路以外を「避ける」とする(割り当てが不正な台は避ける通路なし)
+            avoid = {n: (set(aisles) - {route[n]}) if route.get(n) in aisles else set() for n in names}
             info['reason'] = out.get('reason', '')
         except Exception as e:      # LLM の応答不良は、検証失敗と同じ扱いにする
             info['problems'] = [f'LLM 応答エラー: {e!r}']
             continue
-        problems, _ = check_assignment(planners, dests, avoid)
-        # 全通路を避けさせる等、経路が作れない割り当ては認めない
+        problems, intents = check_assignment(planners, dests, avoid)
         for n in names:
-            if intent_of(planners[n], n, dests[n], avoid[n])['aisle'] is None:
-                problems.append(f'{n} の通路が決まらない')
+            if route.get(n) not in aisles:
+                problems.append(f'{n} の通路が不正')
+            elif intents[n]['aisle'] != route[n]:
+                problems.append(f'{n} は{route[n]}を通れない')
         info['problems'] = problems
         if not problems:
             info['valid'] = True
