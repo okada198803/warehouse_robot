@@ -1,0 +1,11 @@
+﻿cond,trial,ok_both,ok_r1,ok_r2,t_r1,t_r2,t_both,n_blocked_r1,n_blocked_r2,false_reg_r1,false_reg_r2,final_blocked_r1,final_blocked_r2,min_dist,plans_r1,plans_r2,blocks_r1,blocks_r2,error,started_at,avoid_r1,avoid_r2,t_coord,coord
+C2w,1,True,True,True,46.3,52.9,52.9,0,0,False,False,,,0.22,south_aisle→shipping,south_aisle→receiving,[],[],,2026-10-15 20:50:24,,,0.0,{}
+C2w,2,True,True,True,44.5,31.9,44.5,0,0,False,False,,,0.22,south_aisle→shipping,south_aisle→receiving,[],[],,2026-10-15 20:53:02,,,0.0,{}
+C2w,3,False,True,False,52.2,,,0,1,False,False,,,0.23,south_aisle→shipping,south_aisle→receiving / receiving,[],"[{""t"": 65.4, ""near"": null, ""cause"": ""unlocated"", ""hits"": null}]",r2:fail:failed,2026-10-15 20:54:44,,,0.0,{}
+C2w,4,True,True,True,69.8,26.2,69.8,1,0,False,False,,,0.54,south_aisle→shipping / south_aisle→shipping,south_aisle→receiving,"[{""t"": 50.0, ""near"": null, ""cause"": ""unlocated"", ""hits"": null}]",[],,2026-10-15 20:57:05,,,0.0,{}
+C2w,5,False,False,True,,27.0,,0,0,False,False,,,0.89,south_aisle→shipping,south_aisle→receiving,[],[],r1:fail:failed,2026-10-15 20:59:11,,,0.0,{}
+C2w,6,True,True,True,32.3,26.3,32.3,0,0,False,False,,,0.35,south_aisle→shipping,south_aisle→receiving,[],[],,2026-10-15 21:01:29,,,0.0,{}
+C2w,7,True,True,True,47.4,26.5,47.4,0,0,False,False,,,0.7,south_aisle→shipping,south_aisle→receiving,[],[],,2026-10-15 21:03:47,,,0.0,{}
+C2w,8,True,True,True,67.1,26.7,67.1,1,0,False,False,,,0.36,south_aisle→shipping / south_aisle→shipping,south_aisle→receiving,"[{""t"": 45.0, ""near"": null, ""cause"": ""unlocated"", ""hits"": null}]",[],,2026-10-15 21:05:27,,,0.0,{}
+C2w,9,True,True,True,32.6,26.4,32.6,0,0,False,False,,,0.36,south_aisle→shipping,south_aisle→receiving,[],[],,2026-10-15 21:08:21,,,0.0,{}
+C2w,10,False,False,True,,130.9,,1,1,False,False,,,0.21,south_aisle→shipping / shipping,south_aisle→receiving / receiving,"[{""t"": 119.7, ""near"": null, ""cause"": ""unlocated"", ""hits"": null}]","[{""t"": 119.7, ""near"": null, ""cause"": ""unlocated"", ""hits"": null}]",r1:fail:timeout,2026-10-15 21:10:40,,,0.0,{}

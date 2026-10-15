@@ -1,0 +1,11 @@
+﻿cond,trial,ok_both,ok_r1,ok_r2,t_r1,t_r2,t_both,n_blocked_r1,n_blocked_r2,false_reg_r1,false_reg_r2,final_blocked_r1,final_blocked_r2,min_dist,plans_r1,plans_r2,blocks_r1,blocks_r2,error,started_at,avoid_r1,avoid_r2,t_coord,coord
+C2,1,True,True,True,26.9,27.6,27.6,0,0,False,False,,,0.59,south_lane_e→shipping,south_lane_w→receiving,[],[],,2026-10-15 20:52:23,,,0.0,{}
+C2,2,True,True,True,22.1,27.7,27.7,0,0,False,False,,,0.54,south_lane_e→shipping,south_lane_w→receiving,[],[],,2026-10-15 20:54:04,,,0.0,{}
+C2,3,True,True,True,22.5,27.3,27.3,0,0,False,False,,,0.54,south_lane_e→shipping,south_lane_w→receiving,[],[],,2026-10-15 20:56:26,,,0.0,{}
+C2,4,True,True,True,22.4,27.5,27.5,0,0,False,False,,,0.55,south_lane_e→shipping,south_lane_w→receiving,[],[],,2026-10-15 20:58:29,,,0.0,{}
+C2,5,True,True,True,22.4,27.4,27.4,0,0,False,False,,,0.55,south_lane_e→shipping,south_lane_w→receiving,[],[],,2026-10-15 20:59:55,,,0.0,{}
+C2,6,True,True,True,22.2,27.5,27.5,0,0,False,False,,,0.54,south_lane_e→shipping,south_lane_w→receiving,[],[],,2026-10-15 21:02:13,,,0.0,{}
+C2,7,True,True,True,22.9,27.6,27.6,0,0,False,False,,,0.55,south_lane_e→shipping,south_lane_w→receiving,[],[],,2026-10-15 21:04:47,,,0.0,{}
+C2,8,True,True,True,22.0,27.5,27.5,0,0,False,False,,,0.55,south_lane_e→shipping,south_lane_w→receiving,[],[],,2026-10-15 21:06:47,,,0.0,{}
+C2,9,True,True,True,22.0,27.6,27.6,0,0,False,False,,,0.54,south_lane_e→shipping,south_lane_w→receiving,[],[],,2026-10-15 21:09:06,,,0.0,{}
+C2,10,True,True,True,22.7,27.7,27.7,0,0,False,False,,,0.54,south_lane_e→shipping,south_lane_w→receiving,[],[],,2026-10-15 21:14:16,,,0.0,{}
