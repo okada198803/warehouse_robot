@@ -1,6 +1,8 @@
 """2 台のロボットの正面すれ違いを、条件ごとに無人で繰り返し実行する(複数ロボット検証)。
 
     python auto_multi.py --cond C0 --n 10        # C0: 協調なし(各ロボットが独立に動く)
+    python auto_multi.py --cond C3 --n 10        # C3: ロボット間通信(/fleet/intent で意図を送り合い、優先順位の低い側が避ける)
+    python auto_multi.py --cond C1 --n 10        # C1: 統制 LLM(全ロボットの状況を見て、避ける通路を台ごとに割り当てる。Ollama が必要)
     結果: ../docs/multi/<cond>.csv、経過ログ ../docs/multi/logs/<cond>_<NN>.jsonl(logs は git 管理外)
 
 前提: multi 用コンテナ(pai-ros-multi)で multi.launch.py が起動済み、rosbridge は localhost:9091。
@@ -29,6 +31,7 @@ import roslibpy  # noqa: E402
 
 import auto_sim as A  # noqa: E402  (sh, NeedRestart のみ利用)
 from ai_nav.multi_gen import ROBOTS as POSES  # noqa: E402
+from fleet import PRIORITY, PeerChannel, central_assign, resolve  # noqa: E402
 
 OUT = os.path.join(ROOT, 'docs', 'multi')
 LOGS = os.path.join(OUT, 'logs')
@@ -45,7 +48,9 @@ ROBOTS = {
 FIELDS = ['cond', 'trial', 'ok_both', 'ok_r1', 'ok_r2', 't_r1', 't_r2', 't_both',
           'n_blocked_r1', 'n_blocked_r2', 'false_reg_r1', 'false_reg_r2', 'final_blocked_r1',
           'final_blocked_r2', 'min_dist', 'plans_r1', 'plans_r2', 'blocks_r1', 'blocks_r2',
-          'error', 'started_at']
+          'error', 'started_at', 'avoid_r1', 'avoid_r2', 't_coord', 'coord']
+
+TEXT = '指定の経路で移動して'
 
 
 def healthy():
@@ -125,7 +130,17 @@ def reset(links, tr):
             raise A.NeedRestart(f'{ns} を初期位置に戻せない: {p}')
 
 
-def run_trial(links, tr, cond, trial):
+def with_avoid(planner, avoid, fn):
+    """avoid の通路を一時的に通れないものとして計画を作る。通行止めの記憶(planner.blocked)には残さない。"""
+    saved = set(planner.blocked)
+    planner.blocked = saved | set(avoid)
+    try:
+        return fn()
+    finally:
+        planner.blocked = planner.blocked - (set(avoid) - saved)
+
+
+def run_trial(links, tr, cond, trial, chans=None, llm=None):
     from planner import Planner
 
     tag = f'{cond}_{trial:02d}'
@@ -151,8 +166,25 @@ def run_trial(links, tr, cond, trial):
             p = Planner('warehouse', make_stub(cfg['dest']))
             p.last_arrived = cfg['home']
             planners[ns] = p
+        avoid = {ns: set() for ns in ROBOTS}
+        coord = {}
+        if cond == 'C3':        # 優先順位の高い順に、相手の意図を受け取ってから自分の通路を決めて知らせる
+            order = [n for n in PRIORITY if n in ROBOTS]
+            for ns in order:
+                chans[ns].reset(tag)
+            for k, ns in enumerate(order):
+                got = chans[ns].wait_for(order[:k], 3.0)
+                it, av, ok = resolve(planners[ns], ns, ROBOTS[ns]['dest'], list(got.values()))
+                avoid[ns] = av
+                chans[ns].announce(it)
+                coord[ns] = {'received': sorted(got), 'resolved': ok, 'aisle': it['aisle']}
+        elif cond == 'C1':      # 全ロボットの状況を統制 LLM に渡し、避ける通路を割り当てさせる
+            avoid, info = central_assign(llm, planners, {ns: c['dest'] for ns, c in ROBOTS.items()})
+            coord = {k: v for k, v in info.items()}
+        t_coord = round(time.monotonic() - t0, 1)
+        tr.log('coord', avoid={ns: sorted(a) for ns, a in avoid.items()}, info=coord)
         for ns in ROBOTS:
-            send(ns, planners[ns].handle_user('指定の経路で移動して'))
+            send(ns, with_avoid(planners[ns], avoid[ns], lambda ns=ns: planners[ns].handle_user(TEXT)))
 
         while time.monotonic() - t0 < TRIAL_TIMEOUT and len(result) < len(ROBOTS):
             for ns in ROBOTS:
@@ -173,7 +205,8 @@ def run_trial(links, tr, cond, trial):
                 elif state == 'blocked':
                     blocks[ns].append({'t': round(t - t0, 1), 'near': st.get('near_aisle'),
                                        'cause': st.get('cause'), 'hits': st.get('scan_hits')})
-                    if not send(ns, planners[ns].handle_blocked(st)):
+                    if not send(ns, with_avoid(planners[ns], avoid[ns],
+                                               lambda ns=ns, st=st: planners[ns].handle_blocked(st))):
                         result[ns] = ('fail:no_replan', round(t - t0, 1))
         for ns in ROBOTS:
             result.setdefault(ns, ('fail:timeout', None))
@@ -195,6 +228,9 @@ def run_trial(links, tr, cond, trial):
     row['ok_both'] = row['ok_r1'] and row['ok_r2']
     row['t_both'] = max(row['t_r1'], row['t_r2']) if row['ok_both'] else ''
     row['min_dist'] = round(tr.mind, 2)
+    row['avoid_r1'], row['avoid_r2'] = ('|'.join(sorted(avoid[ns])) for ns in ('r1', 'r2'))
+    row['t_coord'] = t_coord
+    row['coord'] = json.dumps(coord, ensure_ascii=False)
     bad = [f'{ns}:{result[ns][0]}' for ns in ROBOTS if result[ns][0] != 'ok']
     row['error'] = ','.join(bad)
     return row
@@ -208,19 +244,25 @@ def load_done(path):
 
 
 def append_row(path, row):
+    """既存の CSV があれば、その見出しの列に合わせて追記する(C0 の CSV は列を足す前のもの)。"""
     new = not os.path.exists(path)
+    fields = FIELDS
+    if not new:
+        with open(path, encoding='utf-8-sig', newline='') as f:
+            fields = next(csv.reader(f), FIELDS)
     with open(path, 'a', newline='', encoding='utf-8-sig') as f:
-        w = csv.DictWriter(f, fieldnames=FIELDS, extrasaction='ignore')
+        w = csv.DictWriter(f, fieldnames=fields, extrasaction='ignore')
         if new:
             w.writeheader()
-        w.writerow({k: row.get(k, '') for k in FIELDS})
+        w.writerow({k: row.get(k, '') for k in fields})
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--cond', required=True, choices=['C0'])
+    ap.add_argument('--cond', required=True, choices=['C0', 'C1', 'C3'])
     ap.add_argument('--n', type=int, default=10)
     ap.add_argument('--host', default='localhost')
+    ap.add_argument('--model', default='qwen2.5:7b', help='C1 の統制 LLM')
     ap.add_argument('--max-errors', type=int, default=3)
     args = ap.parse_args()
 
@@ -238,13 +280,19 @@ def main():
     from ros_link import RosLink
     links = {ns: RosLink(args.host, PORT, ns=ns) for ns in ROBOTS}
     tr = Tracker(links)
+    chans = {ns: PeerChannel(links[ns].ros, ns) for ns in ROBOTS} if args.cond == 'C3' else None
+    llm = None
+    if args.cond == 'C1':
+        from llm_commander import make_llm
+        llm = make_llm(args.model)
+        llm([{'role': 'user', 'content': '{}'}], {'type': 'object'})     # Ollama の初回遅延を避ける
     time.sleep(2.0)
     consecutive = 0
     try:
         for i in todo:
             print(f'[{time.strftime("%H:%M:%S")}] {args.cond} #{i} ...', flush=True)
             try:
-                row = run_trial(links, tr, args.cond, i)
+                row = run_trial(links, tr, args.cond, i, chans, llm)
             except A.NeedRestart as e:
                 print(f'  再起動が必要: {e}', flush=True)
                 return RESTART
@@ -255,7 +303,7 @@ def main():
                     return RESTART
                 continue
             append_row(path, row)
-            print(f'  ok_both={row["ok_both"]} t={row["t_both"]} blocked=({row["n_blocked_r1"]},'
+            print(f'  ok_both={row["ok_both"]} t={row["t_both"]} avoid=({row["avoid_r1"]},{row["avoid_r2"]}) blocked=({row["n_blocked_r1"]},'
                   f'{row["n_blocked_r2"]}) false_reg=({row["false_reg_r1"]},{row["false_reg_r2"]}) '
                   f'min_dist={row["min_dist"]} {row["error"]}', flush=True)
             consecutive = 0
