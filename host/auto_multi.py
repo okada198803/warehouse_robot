@@ -2,6 +2,8 @@
 
     python auto_multi.py --cond C0 --n 10        # C0: 協調なし(各ロボットが独立に動く)
     python auto_multi.py --cond C3 --n 10        # C3: ロボット間通信(/fleet/intent で意図を送り合い、優先順位の低い側が避ける)
+    python auto_multi.py --cond C2w --n 10       # C2w: 環境(南通路を幅 1.5 m に広げた別ワールド。通行規則なし)。warehouse_wide で起動して実行
+    python auto_multi.py --cond C2 --n 10        # C2: 環境(広い南通路 + 通行規則: 進行方向の左側の車線を通る)
     python auto_multi.py --cond C1 --n 10        # C1: 統制 LLM(全ロボットの状況を見て、避ける通路を台ごとに割り当てる。Ollama が必要)
     結果: ../docs/multi/<cond>.csv、経過ログ ../docs/multi/logs/<cond>_<NN>.jsonl(logs は git 管理外)
 
@@ -152,18 +154,27 @@ def run_trial(links, tr, cond, trial, chans=None, llm=None):
     try:
         t0 = time.monotonic()
 
+        def lane(ns, plan):
+            """C2 の通行規則: 南通路の経由地点を、進行方向の左側の車線に置き換える。"""
+            if cond != 'C2' or not plan or plan.get('action') != 'goto':
+                return plan
+            pl, c = planners[ns], ROBOTS[ns]
+            d = 'e' if pl.places[c['dest']]['x'] > pl.places[c['home']]['x'] else 'w'
+            return {**plan, 'targets': [f'south_lane_{d}' if t == 'south_aisle' else t for t in plan['targets']]}
+
         def send(ns, d):
             for line in d.log:
                 tr.log('planner', ns=ns, line=line)
-            tr.log('decision', ns=ns, source=d.source, plan=d.plan)
-            if d.plan:
-                plans[ns].append(d.plan.get('targets') or [])
-                links[ns].send_plan(d.plan)
+            plan = lane(ns, d.plan)
+            tr.log('decision', ns=ns, source=d.source, plan=plan)
+            if plan:
+                plans[ns].append(plan.get('targets') or [])
+                links[ns].send_plan(plan)
                 return True
             return False
 
         for ns, cfg in ROBOTS.items():
-            p = Planner('warehouse', make_stub(cfg['dest']))
+            p = Planner('warehouse_wide' if cond.startswith('C2') else 'warehouse', make_stub(cfg['dest']))
             p.last_arrived = cfg['home']
             planners[ns] = p
         avoid = {ns: set() for ns in ROBOTS}
@@ -268,7 +279,7 @@ def main():
     args = ap.parse_args()
     conds = [c for c in args.conds.split(',') if c]
     for c in conds:
-        if c not in ('C0', 'C1', 'C3'):
+        if c not in ('C0', 'C1', 'C2', 'C2w', 'C3'):
             raise SystemExit(f'unknown condition {c}')
 
     os.makedirs(OUT, exist_ok=True)

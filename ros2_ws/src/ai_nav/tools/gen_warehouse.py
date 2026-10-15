@@ -13,7 +13,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PKG = os.path.dirname(HERE)
 TEMPLATE = os.path.join(PKG, '..', 'nav_dev', 'models', 'worlds', 'nav_slam.sdf')
 
-WORLD_NAME = 'warehouse'
+WORLD_NAME = 'warehouse'     # SDF 内のワールド名(シミュレータのサービス名 /world/warehouse/... に使う)
+FILE_NAME = 'warehouse'      # 出力ファイル名の基(--wide のときは warehouse_wide)
 SIZE_X, SIZE_Y = 7.0, 5.0       # 床面(m)
 RES = 0.05                      # 地図解像度(m/px)
 MARGIN = 0.25                   # 地図の外側余白(m)
@@ -110,7 +111,7 @@ def write_world():
     models = ''.join(box_model(*b) for b in BOXES)
     models += ''.join(visual_model(*b) for b in CONTROL_ROOM) + cargo_models()
     sdf = sdf.replace('  </world>', models + '\n  </world>')
-    out = os.path.join(PKG, 'worlds', f'{WORLD_NAME}.sdf')
+    out = os.path.join(PKG, 'worlds', f'{FILE_NAME}.sdf')
     with open(out, 'w', encoding='utf-8') as f:
         f.write(sdf)
     return out
@@ -139,16 +140,22 @@ def write_map():
             x = ox + (c + 0.5) * RES
             if (x < -0.1 or x > SIZE_X + 0.1 or y < -0.1 or y > SIZE_Y + 0.1) and grid[r][c]:
                 grid[r][c] = 205                  # 205 = unknown
-    pgm = os.path.join(PKG, 'maps', f'{WORLD_NAME}.pgm')
+    pgm = os.path.join(PKG, 'maps', f'{FILE_NAME}.pgm')
     with open(pgm, 'wb') as f:
         f.write(f'P5\n{w} {h}\n255\n'.encode())
         f.write(bytes(v for row in grid for v in row))
-    with open(os.path.join(PKG, 'maps', f'{WORLD_NAME}.yaml'), 'w') as f:
-        f.write(f'image: {WORLD_NAME}.pgm\nmode: trinary\nresolution: {RES}\n'
+    with open(os.path.join(PKG, 'maps', f'{FILE_NAME}.yaml'), 'w') as f:
+        f.write(f'image: {FILE_NAME}.pgm\nmode: trinary\nresolution: {RES}\n'
                 f'origin: [{ox}, {oy}, 0]\nnegate: 0\noccupied_thresh: 0.65\nfree_thresh: 0.25\n')
     return pgm
 
 
 if __name__ == '__main__':
+    import sys
+    if '--wide' in sys.argv:
+        # 複数ロボット検証の C2: 南通路の仕切り(gate_south)を外して幅 0.9 m → 1.5 m にする別ワールド。
+        # 既定の warehouse.* は書き換えず、warehouse_wide.* に出力する
+        BOXES = [b for b in BOXES if b[0] != 'gate_south']
+        FILE_NAME = 'warehouse_wide'
     print(write_world())
     print(write_map())

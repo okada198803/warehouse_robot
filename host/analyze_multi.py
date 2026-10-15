@@ -13,7 +13,7 @@ import statistics as st
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', 'docs', 'multi')
 CONTACT = 0.22     # [m] この距離以下は接触の可能性(ロボットの大きさ約 0.16 × 0.23 m)
-NAMES = {'C0': 'C0 協調なし', 'C1a': 'C1a 統制LLM 第1版(避ける通路を出力)', 'C1': 'C1 統制LLM 第2版(通る通路を出力)', 'C2': 'C2 環境(広い通路)', 'C3': 'C3 ロボット間通信'}
+NAMES = {'C0': 'C0 協調なし', 'C1a': 'C1a 統制LLM 第1版(避ける通路を出力)', 'C1': 'C1 統制LLM 第2版(通る通路を出力)', 'C2w': 'C2w 環境: 広い通路のみ', 'C2': 'C2 環境: 広い通路 + 車線の通行規則', 'C3': 'C3 ロボット間通信'}
 
 
 def wilson(k, n, z=1.96):

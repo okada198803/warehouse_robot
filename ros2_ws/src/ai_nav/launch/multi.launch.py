@@ -73,7 +73,7 @@ def setup(context):
 
     delayed = []
     map_yaml = share('ai_nav', 'maps', f'{world}.yaml')
-    places = share('ai_nav', 'config', 'places_warehouse.yaml')
+    places = share('ai_nav', 'config', f'places_{world}.yaml')   # warehouse_wide は車線の経由地点を含む
     for ns in names:
         # 座標変換(各名前空間の tf に出す)。map->odom は恒等(単体構成と同じ)
         for args in (['--frame-id', 'map', '--child-frame-id', 'odom'],
