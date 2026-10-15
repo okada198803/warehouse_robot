@@ -16,6 +16,12 @@ CONTACT = 0.22     # [m] この距離以下は接触の可能性(ロボットの
 NAMES = {'C0': 'C0 協調なし', 'C1a': 'C1a 統制LLM 第1版(避ける通路を出力)', 'C1': 'C1 統制LLM 第2版(通る通路を出力)', 'C2w': 'C2w 環境: 広い通路のみ', 'C2': 'C2 環境: 広い通路 + 車線の通行規則', 'C3': 'C3 ロボット間通信'}
 
 
+def label(c):
+    b = c.split('_')[0]
+    n = NAMES.get(b, b)
+    return n + ' [最終コードでの再確認]' if c.endswith('_recheck') else n
+
+
 def wilson(k, n, z=1.96):
     if n == 0:
         return (0.0, 0.0)
@@ -76,13 +82,13 @@ def main():
     for r in res:
         t = f'{r["t_med"]:.1f}' if r['t_med'] is not None else '-'
         md = f'{r["md_min"]:.2f}' if r['md_min'] is not None else '-'
-        lines.append(f'| {NAMES.get(r["cond"], r["cond"])} | {r["n"]} | {r["ok"]}/{r["n"]} '
+        lines.append(f'| {label(r["cond"])} | {r["n"]} | {r["ok"]}/{r["n"]} '
                      f'({r["ci"][0]*100:.0f}〜{r["ci"][1]*100:.0f}%) | {r["ok_r1"]} / {r["ok_r2"]} | {t} | {md} | '
                      f'{r["contact"]}/{r["n"]} | {r["false_reg"]}/{r["n"]} | {r["blocked"]} | {r["avoided"]}/{r["n"]} |')
     for r in res:
         if r['llm_calls']:
             lines.append('')
-            lines.append(f'- {NAMES.get(r["cond"], r["cond"])}: 統制 LLM の呼び出し {r["llm_calls"]} 回、'
+            lines.append(f'- {label(r["cond"])}: 統制 LLM の呼び出し {r["llm_calls"]} 回、'
                          f'検証に通った試行 {r["llm_valid"]}/{r["n"]}')
     lines += ['', f'注: 接触の可能性 = 台間の最小距離が {CONTACT} m 以下。同一シナリオの繰り返しで、位置の初期値は固定。']
     text = '\n'.join(lines) + '\n'
