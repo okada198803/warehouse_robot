@@ -145,7 +145,7 @@ def with_avoid(planner, avoid, fn):
 def run_trial(links, tr, cond, trial, chans=None, llm=None):
     from planner import Planner
 
-    tag = f'{cond}_{trial:02d}'
+    tag = f'{cond}{os.environ.get("MULTI_SUFFIX", "")}_{trial:02d}'
     os.makedirs(LOGS, exist_ok=True)
     row = {'cond': cond, 'trial': trial, 'started_at': time.strftime('%Y-%m-%d %H:%M:%S'), 'error': ''}
     reset(links, tr)
@@ -283,7 +283,8 @@ def main():
             raise SystemExit(f'unknown condition {c}')
 
     os.makedirs(OUT, exist_ok=True)
-    paths = {c: os.path.join(OUT, f'{c}.csv') for c in conds}
+    suffix = os.environ.get('MULTI_SUFFIX', '')     # 例 _recheck: 元の測定データと混ぜずに、別ファイルへ記録する
+    paths = {c: os.path.join(OUT, f'{c}{suffix}.csv') for c in conds}
     done = {c: load_done(paths[c]) for c in conds}
     todo = [(c, i) for i in range(1, args.n + 1) for c in conds if i not in done[c]]   # 試行番号ごとに条件を交互に
     print(f'[{",".join(conds)}] 残り {len(todo)} 試行', flush=True)
