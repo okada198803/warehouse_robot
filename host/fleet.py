@@ -71,15 +71,27 @@ class PeerChannel:
         if d.get('from') != self.ns and d.get('tag') == self.tag:
             self.seen[d['from']] = d
 
-    def reset(self, tag):
+    def reset(self, tag, drop_p=0.0, delay=0.0, seed=None):
+        """試行の開始。drop_p: 送信 1 回(4 回の繰り返しを含む)ごとに不達にする確率、delay: 送信までの遅れ [s]。
+        通信の欠落・遅延の試験(C3x・C3h・C3d・C4x)用。既定値では従来と同じ動作。"""
+        import random
         self.tag, self.seen = tag, {}
+        self.drop_p, self.delay = drop_p, delay
+        self.rng = random.Random(seed)
+        self.dropped = 0
 
     def announce(self, intent, repeat=4, interval=0.4):
         """取りこぼしに備えて数回送る(別スレッド)。"""
         import roslibpy
         body = json.dumps({**intent, 'tag': self.tag})
+        if getattr(self, 'drop_p', 0.0) and self.rng.random() < self.drop_p:
+            self.dropped += 1          # 不達(この送信は相手に届かない)
+            return
+        delay = getattr(self, 'delay', 0.0)
 
         def send():
+            if delay:
+                time.sleep(delay)
             for _ in range(repeat):
                 self.topic.publish(roslibpy.Message({'data': body}))
                 time.sleep(interval)
@@ -123,7 +135,7 @@ def central_prompt(planners, dests, notes_extra=''):
             problems, length = p.checker.check_plan(start, [a, d], set())
             if not problems:
                 dist.append(f'{p.places[a]["name"]}({a}) {length:.1f}m')
-        lines.append(f'{n}: 現在地 {p.places[home]["name"] if home in p.places else home} → 目的地 {p.places[d]["name"]}'
+        lines.append(f'{n}: 現在地 {p.places[home]["name"] if home in p.places else "座標(%.1f, %.1f)" % tuple(_xy(p, start))} → 目的地 {p.places[d]["name"]}'
                      f'({direction})。経由する通路ごとの距離: {" / ".join(dist)}')
     return '\n'.join(lines) + notes_extra
 
@@ -140,13 +152,19 @@ def check_assignment(planners, dests, avoid):
     return problems, intents
 
 
-def central_assign(llm_fn, planners, dests, max_retries=2):
-    """統制 LLM に各ロボットの通路を割り当てさせる。(avoid, 情報 dict)。検証に通らなければ avoid は空(協調なし)。"""
+def central_assign(llm_fn, planners, dests, max_retries=2, occupied=None):
+    """統制 LLM に各ロボットの通路を割り当てさせる。(avoid, 情報 dict)。検証に通らなければ avoid は空(協調なし)。
+    occupied: {通路: 応答のないロボット名}(C4 用)。プロンプトに伝え、その通路の割り当ては検証で差し戻す。None なら従来どおり。"""
     names = list(planners)
     aisles = list(planners[names[0]].aisles)
     schema = central_schema(names, aisles)
+    extra = ''
+    if occupied:
+        pl = planners[names[0]]
+        extra = '\n' + '\n'.join(f'応答のないロボット {r} が{pl.places[a]["name"]}({a})の中で停止している。この通路は通れない。'
+                                   for a, r in occupied.items())
     messages = [{'role': 'system', 'content': '倉庫の複数ロボットを統制する。出力は JSON のみ。'},
-                {'role': 'user', 'content': central_prompt(planners, dests)}]
+                {'role': 'user', 'content': central_prompt(planners, dests, extra)}]
     info = {'calls': 0, 'valid': False, 'reason': '', 'problems': [], 'raw': []}
     for _ in range(max_retries + 1):
         info['calls'] += 1
@@ -166,6 +184,8 @@ def central_assign(llm_fn, planners, dests, max_retries=2):
                 problems.append(f'{n} の通路が不正')
             elif intents[n]['aisle'] != route[n]:
                 problems.append(f'{n} は{route[n]}を通れない')
+            elif occupied and route[n] in occupied:
+                problems.append(f'{n} の{route[n]}には停止したロボット {occupied[route[n]]} がいる')
         info['problems'] = problems
         if not problems:
             info['valid'] = True
@@ -173,3 +193,12 @@ def central_assign(llm_fn, planners, dests, max_retries=2):
         messages.append({'role': 'assistant', 'content': json.dumps(out, ensure_ascii=False)})
         messages.append({'role': 'user', 'content': '問題があります: ' + '; '.join(problems) + '。作り直してください。'})
     return {n: set() for n in names}, info
+
+
+def aisle_at(planner, xy, half_len=1.6):
+    """座標 xy が入っている通路(なければ None)。通路の中心から x 方向 ±half_len、y 方向 ±0.45 m の範囲で判定する。"""
+    for a in planner.aisles:
+        p = planner.places[a]
+        if abs(xy[0] - p['x']) <= half_len and abs(xy[1] - p['y']) <= 0.45:
+            return a
+    return None

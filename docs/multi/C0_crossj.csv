@@ -1,0 +1,11 @@
+﻿scenario,cond,trial,ok_both,ok_r1,ok_r2,t_r1,t_r2,t_both,n_blocked_r1,n_blocked_r2,false_reg_r1,false_reg_r2,final_blocked_r1,final_blocked_r2,min_dist,plans_r1,plans_r2,blocks_r1,blocks_r2,error,started_at,avoid_r1,avoid_r2,t_coord,coord,delay_r1,delay_r2,t_net
+crossj,C0,1,True,True,True,32.7,37.8,37.8,0,0,False,False,,,0.76,middle_aisle→charger,middle_aisle→shipping,[],[],,2026-10-16 14:40:41,,,0.0,{},1.3,3.9,33.9
+crossj,C0,2,True,True,True,31.6,35.2,35.2,0,0,False,False,,,0.36,middle_aisle→charger,middle_aisle→shipping,[],[],,2026-10-16 14:44:11,,,0.0,{},0.4,1.5,33.7
+crossj,C0,3,True,True,True,33.8,36.9,36.9,0,0,False,False,,,0.2,middle_aisle→charger,middle_aisle→shipping,[],[],,2026-10-16 14:47:36,,,0.0,{},3.0,4.2,32.7
+crossj,C0,4,True,True,True,32.5,37.6,37.6,0,0,False,False,,,0.74,middle_aisle→charger,middle_aisle→shipping,[],[],,2026-10-16 14:50:20,,,0.0,{},0.8,4.0,33.6
+crossj,C0,5,True,True,True,37.4,36.5,37.4,0,0,False,False,,,0.21,middle_aisle→charger,middle_aisle→shipping,[],[],,2026-10-16 14:52:58,,,0.0,{},4.7,2.3,34.2
+crossj,C0,6,True,True,True,31.9,37.5,37.5,0,0,False,False,,,0.83,middle_aisle→charger,middle_aisle→shipping,[],[],,2026-10-16 14:56:31,,,0.0,{},1.3,3.8,33.7
+crossj,C0,7,True,True,True,31.8,35.3,35.3,0,0,False,False,,,0.39,middle_aisle→charger,middle_aisle→shipping,[],[],,2026-10-16 15:00:02,,,0.0,{},0.4,2.5,32.8
+crossj,C0,8,True,True,True,34.6,39.6,39.6,0,0,False,False,,,0.19,middle_aisle→charger,middle_aisle→shipping,[],[],,2026-10-16 15:02:38,,,0.0,{},3.5,1.0,38.6
+crossj,C0,9,True,True,True,36.0,33.8,36.0,0,0,False,False,,,0.25,middle_aisle→charger,middle_aisle→shipping,[],[],,2026-10-16 15:05:29,,,0.0,{},4.3,0.4,33.4
+crossj,C0,10,True,True,True,34.0,36.6,36.6,0,0,False,False,,,0.2,middle_aisle→charger,middle_aisle→shipping,[],[],,2026-10-16 15:08:03,,,0.0,{},1.0,0.8,35.8

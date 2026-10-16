@@ -1,0 +1,11 @@
+﻿scenario,cond,trial,ok_both,ok_r1,ok_r2,t_r1,t_r2,t_both,n_blocked_r1,n_blocked_r2,false_reg_r1,false_reg_r2,final_blocked_r1,final_blocked_r2,min_dist,plans_r1,plans_r2,blocks_r1,blocks_r2,error,started_at,avoid_r1,avoid_r2,t_coord,coord,delay_r1,delay_r2,t_net
+wait,C2,1,True,True,True,28.2,65.6,65.6,0,0,False,False,,,0.22,south_lane_e→shipping,south_lane_e→shipping,[],[],,2026-10-16 11:46:24,,,0.0,{},0.0,25.0,40.6
+wait,C2,2,True,True,True,26.0,57.0,57.0,0,0,False,False,,,0.2,south_lane_e→shipping,south_lane_e→shipping,[],[],,2026-10-16 11:47:41,,,0.0,{},0.0,25.0,32.0
+wait,C2,3,True,True,True,30.9,66.1,66.1,0,0,False,False,,,0.18,south_lane_e→shipping,south_lane_e→shipping,[],[],,2026-10-16 11:48:52,,,0.0,{},0.0,25.0,41.1
+wait,C2,4,True,True,True,31.2,54.5,54.5,0,0,False,False,,,0.21,south_lane_e→shipping,south_lane_e→shipping,[],[],,2026-10-16 11:50:11,,,0.0,{},0.0,25.0,31.2
+wait,C2,5,True,True,True,29.9,66.9,66.9,0,0,False,False,,,0.2,south_lane_e→shipping,south_lane_e→shipping,[],[],,2026-10-16 11:52:12,,,0.0,{},0.0,25.0,41.9
+wait,C2,6,True,True,True,28.9,63.0,63.0,0,0,False,False,,,0.21,south_lane_e→shipping,south_lane_e→shipping,[],[],,2026-10-16 11:53:34,,,0.0,{},0.0,25.0,38.0
+wait,C2,7,True,True,True,30.8,54.3,54.3,0,0,False,False,,,0.21,south_lane_e→shipping,south_lane_e→shipping,[],[],,2026-10-16 11:55:44,,,0.0,{},0.0,25.0,30.8
+wait,C2,8,True,True,True,27.3,56.2,56.2,0,0,False,False,,,0.21,south_lane_e→shipping,south_lane_e→shipping,[],[],,2026-10-16 11:56:51,,,0.0,{},0.0,25.0,31.2
+wait,C2,9,True,True,True,25.9,63.3,63.3,0,0,False,False,,,0.21,south_lane_e→shipping,south_lane_e→shipping,[],[],,2026-10-16 11:58:01,,,0.0,{},0.0,25.0,38.3
+wait,C2,10,True,True,True,27.4,54.9,54.9,0,0,False,False,,,0.19,south_lane_e→shipping,south_lane_e→shipping,[],[],,2026-10-16 11:59:19,,,0.0,{},0.0,25.0,29.9

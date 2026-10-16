@@ -1,0 +1,11 @@
+﻿scenario,cond,trial,ok_both,ok_r1,ok_r2,t_r1,t_r2,t_both,n_blocked_r1,n_blocked_r2,false_reg_r1,false_reg_r2,final_blocked_r1,final_blocked_r2,min_dist,plans_r1,plans_r2,blocks_r1,blocks_r2,error,started_at,avoid_r1,avoid_r2,t_coord,coord,delay_r1,delay_r2,t_net
+opp,N0,1,False,True,False,144.4,,,0,0,False,False,,,0.23,,,[],[],r2:fail:nav2,2026-10-16 19:30:07,,,0.0,{},0.0,0.0,
+opp,N0,2,True,True,True,91.7,61.4,91.7,0,0,False,False,,,0.08,,,[],[],,2026-10-16 19:38:18,,,0.0,{},0.0,0.0,91.7
+opp,N0,3,False,True,False,22.4,,,0,0,False,False,,,0.34,,,[],[],r2:fail:nav2,2026-10-16 19:47:00,,,0.0,{},0.0,0.0,
+opp,N0,4,False,False,True,,59.5,,0,0,False,False,,,0.14,,,[],[],r1:fail:nav2,2026-10-16 19:56:56,,,0.0,{},0.0,0.0,
+opp,N0,5,False,False,True,,28.1,,0,0,False,False,,,0.33,,,[],[],r1:fail:nav2,2026-10-16 20:06:22,,,0.0,{},0.0,0.0,
+opp,N0,6,False,True,False,149.5,,,0,0,False,False,,,0.29,,,[],[],r2:fail:nav2,2026-10-16 20:15:17,,,0.0,{},0.0,0.0,
+opp,N0,7,False,True,False,114.4,,,0,0,False,False,,,0.29,,,[],[],r2:fail:nav2,2026-10-16 20:24:03,,,0.0,{},0.0,0.0,
+opp,N0,8,True,True,True,27.5,127.6,127.6,0,0,False,False,,,0.29,,,[],[],,2026-10-16 20:33:04,,,0.0,{},0.0,0.0,127.6
+opp,N0,9,True,True,True,107.8,92.0,107.8,0,0,False,False,,,0.23,,,[],[],,2026-10-16 20:42:05,,,0.0,{},0.0,0.0,107.8
+opp,N0,10,True,True,True,67.8,117.2,117.2,0,0,False,False,,,0.3,,,[],[],,2026-10-16 20:50:33,,,0.0,{},0.0,0.0,117.2
