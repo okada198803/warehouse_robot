@@ -5,6 +5,12 @@
     python auto_multi.py --cond C2w --n 10       # C2w: 環境(南通路を幅 1.5 m に広げた別ワールド。通行規則なし)。warehouse_wide で起動して実行
     python auto_multi.py --cond C2 --n 10        # C2: 環境(広い南通路 + 通行規則: 進行方向の左側の車線を通る)
     python auto_multi.py --cond C1 --n 10        # C1: 統制 LLM(全ロボットの状況を見て、避ける通路を台ごとに割り当てる。Ollama が必要)
+    追加の条件(通信の欠落・遅延、2 層、AI 層なしの基準):
+      C3x  C3 で、意図の送信がすべて届かない          C3h  C3 で、送信ごとに 50% の確率で届かない(試行番号で固定)
+      C3d  C3 で、送信が 2 秒遅れる(待ち 3 秒の内)
+      C4   C3 + 例外時の統制 LLM: 応答のない台・解決できない競合があるときだけ C1 を呼ぶ(Ollama が必要)
+      C4x  C4 で、意図の送信がすべて届かない
+      N0   Nav2 のみ: plan_executor・Planner を使わず、目的地を Nav2 に直接送る(AI 層なしの基準)
     結果: ../docs/multi/<cond>.csv、経過ログ ../docs/multi/logs/<cond>_<NN>.jsonl(logs は git 管理外)
 
 前提: multi 用コンテナ(pai-ros-multi)で multi.launch.py が起動済み、rosbridge は localhost:9091。
@@ -33,7 +39,7 @@ import roslibpy  # noqa: E402
 
 import auto_sim as A  # noqa: E402  (sh, NeedRestart のみ利用)
 from ai_nav.multi_gen import ROBOTS as POSES  # noqa: E402
-from fleet import PRIORITY, PeerChannel, central_assign, resolve  # noqa: E402
+from fleet import PRIORITY, PeerChannel, aisle_at, central_assign, resolve  # noqa: E402
 
 OUT = os.path.join(ROOT, 'docs', 'multi')
 LOGS = os.path.join(OUT, 'logs')
@@ -113,6 +119,13 @@ FIELDS = ['scenario', 'cond', 'trial', 'ok_both', 'ok_r1', 'ok_r2', 't_r1', 't_r
           'error', 'started_at', 'avoid_r1', 'avoid_r2', 't_coord', 'coord', 'delay_r1', 'delay_r2', 't_net']
 
 TEXT = '指定の経路で移動して'
+CONDS = ('C0', 'C1', 'C2', 'C2w', 'C3', 'C3x', 'C3h', 'C3d', 'C4', 'C4x', 'N0')
+FAULT = {'C3x': (1.0, 0.0), 'C3h': (0.5, 0.0), 'C3d': (0.0, 2.0), 'C4x': (1.0, 0.0)}   # 条件 → (不達の確率, 遅れ [s])
+
+
+def peer(cond):
+    """ロボット間通信を使う条件か(C3 の派生と C4)。"""
+    return cond.startswith('C3') or cond.startswith('C4')
 
 
 def healthy():
@@ -210,6 +223,53 @@ def uses_south(planner, dest):
     return any(mask[r, c] for r, c in path)
 
 
+def nav2_goal_cmd(ns, x, y, yaw, timeout):
+    goal = ('{pose: {header: {frame_id: map}, pose: {position: {x: %.2f, y: %.2f, z: 0.0}, '
+            'orientation: {z: %.4f, w: %.4f}}}}' % (x, y, math.sin(yaw / 2), math.cos(yaw / 2)))
+    return (f'timeout -s INT {int(timeout)} ros2 action send_goal /{ns}/navigate_to_pose '
+            f'nav2_msgs/action/NavigateToPose "{goal}"')
+
+
+def nav2_only(planners, movers, pending, delays, result, tr, t0):
+    """N0: 目的地を Nav2 に直接送る(Planner・plan_executor・通行止めの記憶・LiDAR の通路確認を使わない)。
+    Nav2 の標準の動作(大域経路の再計画と回復動作)だけで到着できるかを測る。時間は docker exec の起動(約 1 秒)を含む。"""
+    import subprocess
+    procs = {}
+
+    def start(ns):
+        p = planners[ns].places[ROBOTS[ns]['dest']]
+        cmd = A.SRC + nav2_goal_cmd(ns, p['x'], p['y'], p['yaw'], TRIAL_TIMEOUT)
+        procs[ns] = subprocess.Popen(['docker', 'compose', 'exec', '-T', '-u', 'ubuntu', 'ros', 'bash', '-c', cmd],
+                                     cwd=A.DOCKER_DIR, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                     stderr=subprocess.STDOUT, text=True)
+        tr.log('nav2_goal', ns=ns, dest=ROBOTS[ns]['dest'])
+
+    for ns in movers:
+        if ns not in pending:
+            start(ns)
+    try:
+        while time.monotonic() - t0 < TRIAL_TIMEOUT + 5 and len(result) < len(ROBOTS):
+            for ns in [n for n, d in pending.items() if time.monotonic() - t0 >= d]:
+                del pending[ns]
+                start(ns)
+            for ns, pr in procs.items():
+                if ns in result or pr.poll() is None:
+                    continue
+                out = pr.stdout.read() or ''
+                ok = 'SUCCEEDED' in out
+                t = round(time.monotonic() - t0, 1)
+                result[ns] = ('ok', t) if ok else ('fail:nav2', t)
+                tr.log('nav2_result', ns=ns, ok=ok, tail=out[-300:])
+            time.sleep(0.2)
+    finally:
+        for ns, pr in procs.items():       # 終わっていない目標は、現在地への目標で置き換えて止める(次の試行に残さない)
+            if pr.poll() is None:
+                pr.terminate()
+            if ns not in result or result[ns][0] != 'ok':
+                x, y = tr.pos.get(ns, (0.0, 0.0))
+                A.sh(nav2_goal_cmd(ns, x, y, 0.0, 15), timeout=30)
+
+
 def run_trial(links, tr, cond, trial, chans=None, llm=None):
     from planner import Planner
 
@@ -271,7 +331,7 @@ def run_trial(links, tr, cond, trial, chans=None, llm=None):
 
         def coordinate_late(ns):
             """遅れて出発する台の協調。すでに走っている台の計画は変えず、この台だけが通路を選ぶ。"""
-            if cond == 'C3':
+            if peer(cond):
                 higher = [n for n in PRIORITY if n in movers and PRIORITY.index(n) < PRIORITY.index(ns)]
                 got = chans[ns].wait_for(higher, 3.0)
                 it, av, ok = resolve(planners[ns], ns, ROBOTS[ns]['dest'], list(got.values()))
@@ -285,10 +345,11 @@ def run_trial(links, tr, cond, trial, chans=None, llm=None):
                 coord['late_' + ns] = {k: v for k, v in info.items()}
             tr.log('coord_late', ns=ns, avoid=sorted(avoid[ns]), info=coord.get(ns) or coord.get('late_' + ns))
 
-        if cond == 'C3':        # 優先順位の高い順に、相手の意図を受け取ってから自分の通路を決めて知らせる
+        if peer(cond):        # 優先順位の高い順に、相手の意図を受け取ってから自分の通路を決めて知らせる
             order = [n for n in PRIORITY if n in movers]
-            for ns in order:
-                chans[ns].reset(tag)
+            drop_p, delay = FAULT.get(cond, (0.0, 0.0))
+            for k, ns in enumerate(order):
+                chans[ns].reset(tag, drop_p, delay, seed=trial * 10 + k)
             for k, ns in enumerate(order):
                 if ns in late:
                     continue
@@ -297,6 +358,27 @@ def run_trial(links, tr, cond, trial, chans=None, llm=None):
                 avoid[ns] = av
                 chans[ns].announce(it)
                 coord[ns] = {'received': sorted(got), 'resolved': ok, 'aisle': it['aisle']}
+        if cond.startswith('C4'):        # 例外の判定: 全台(停止した台を含む)の意図が届いたか、競合を解決できたか
+            for ns in order:
+                chans[ns].wait_for([o for o in order if o != ns], 3.0)
+            heard = {n for m in order for n in chans[m].seen}
+            silent = [n for n in ROBOTS if n not in heard]
+            unresolved = [n for n in order if not coord.get(n, {}).get('resolved', True)]
+            coord['c4'] = {'silent': silent, 'unresolved': unresolved,
+                           'dropped': {ns: chans[ns].dropped for ns in order}, 'central': None}
+            if silent or unresolved:
+                occupied = {}
+                for n in silent:
+                    if n not in movers:      # 停止した台: 最後に分かっている位置(初期位置)の通路を占有中とする
+                        a = aisle_at(planners[order[0]], poses[n][:2])
+                        if a:
+                            occupied[a] = n
+                av, info = central_assign(llm, {n: planners[n] for n in movers},
+                                          {n: ROBOTS[n]['dest'] for n in movers}, occupied=occupied or None)
+                coord['c4']['central'] = info
+                coord['c4']['occupied'] = occupied
+                if info.get('valid'):
+                    avoid.update(av)
         elif cond == 'C1' and not late:      # 全ロボットの状況を統制 LLM に渡し、避ける通路を割り当てさせる
             av, info = central_assign(llm, {n: planners[n] for n in movers}, {n: ROBOTS[n]['dest'] for n in movers})
             avoid.update(av)
@@ -307,38 +389,41 @@ def run_trial(links, tr, cond, trial, chans=None, llm=None):
         for ns in ROBOTS:
             if ROBOTS[ns].get('static'):
                 result[ns] = ('ok', 0.0)       # 停止したままの台(dead)は、到着を求めない
-        for ns in movers:
-            if ns not in pending:
-                send(ns, with_avoid(planners[ns], avoid[ns], lambda ns=ns: planners[ns].handle_user(TEXT)))
+        if cond == 'N0':
+            nav2_only(planners, movers, pending, delays, result, tr, t0)
+        else:
+            for ns in movers:
+                if ns not in pending:
+                    send(ns, with_avoid(planners[ns], avoid[ns], lambda ns=ns: planners[ns].handle_user(TEXT)))
 
-        while time.monotonic() - t0 < TRIAL_TIMEOUT and len(result) < len(ROBOTS):
-            for ns in [n for n, d in pending.items() if time.monotonic() - t0 >= d]:
-                del pending[ns]
-                tr.log('depart', ns=ns)
-                if ns in late:
-                    coordinate_late(ns)
-                send(ns, with_avoid(planners[ns], avoid[ns], lambda ns=ns: planners[ns].handle_user(TEXT)))
-            for ns in ROBOTS:
-                if ns in result or ns in pending:
-                    continue
-                try:
-                    t, st = tr.queues[ns].get(timeout=0.25)
-                except queue.Empty:
-                    continue
-                state = st.get('state')
-                planners[ns].on_status(st)
-                if state != 'navigating':
-                    tr.log('status', ns=ns, **st)
-                if state == 'done':
-                    result[ns] = ('ok', round(t - t0, 1))
-                elif state in ('failed', 'rejected'):
-                    result[ns] = (f'fail:{state}', round(t - t0, 1))
-                elif state == 'blocked':
-                    blocks[ns].append({'t': round(t - t0, 1), 'near': st.get('near_aisle'),
-                                       'cause': st.get('cause'), 'hits': st.get('scan_hits')})
-                    if not send(ns, with_avoid(planners[ns], avoid[ns],
-                                               lambda ns=ns, st=st: planners[ns].handle_blocked(st))):
-                        result[ns] = ('fail:no_replan', round(t - t0, 1))
+            while time.monotonic() - t0 < TRIAL_TIMEOUT and len(result) < len(ROBOTS):
+                for ns in [n for n, d in pending.items() if time.monotonic() - t0 >= d]:
+                    del pending[ns]
+                    tr.log('depart', ns=ns)
+                    if ns in late:
+                        coordinate_late(ns)
+                    send(ns, with_avoid(planners[ns], avoid[ns], lambda ns=ns: planners[ns].handle_user(TEXT)))
+                for ns in ROBOTS:
+                    if ns in result or ns in pending:
+                        continue
+                    try:
+                        t, st = tr.queues[ns].get(timeout=0.25)
+                    except queue.Empty:
+                        continue
+                    state = st.get('state')
+                    planners[ns].on_status(st)
+                    if state != 'navigating':
+                        tr.log('status', ns=ns, **st)
+                    if state == 'done':
+                        result[ns] = ('ok', round(t - t0, 1))
+                    elif state in ('failed', 'rejected'):
+                        result[ns] = (f'fail:{state}', round(t - t0, 1))
+                    elif state == 'blocked':
+                        blocks[ns].append({'t': round(t - t0, 1), 'near': st.get('near_aisle'),
+                                           'cause': st.get('cause'), 'hits': st.get('scan_hits')})
+                        if not send(ns, with_avoid(planners[ns], avoid[ns],
+                                                   lambda ns=ns, st=st: planners[ns].handle_blocked(st))):
+                            result[ns] = ('fail:no_replan', round(t - t0, 1))
         for ns in ROBOTS:
             result.setdefault(ns, ('fail:timeout', None))
     finally:
@@ -403,7 +488,7 @@ def main():
     args = ap.parse_args()
     conds = [c for c in args.conds.split(',') if c]
     for c in conds:
-        if c not in ('C0', 'C1', 'C2', 'C2w', 'C3'):
+        if c not in CONDS:
             raise SystemExit(f'unknown condition {c}')
 
     set_scenario(args.scenario)
@@ -423,9 +508,9 @@ def main():
     from ros_link_ns import NsLink as RosLink
     links = {ns: RosLink(args.host, PORT, ns=ns) for ns in ROBOTS}
     tr = Tracker(links)
-    chans = {ns: PeerChannel(links[ns].ros, ns) for ns in ROBOTS} if 'C3' in conds else None
+    chans = {ns: PeerChannel(links[ns].ros, ns) for ns in ROBOTS} if any(peer(c) for c in conds) else None
     llm = None
-    if 'C1' in conds:
+    if any(c in ('C1', 'C4', 'C4x') for c in conds):
         from llm_commander import make_llm
         llm = make_llm(args.model)
         llm([{'role': 'user', 'content': '{}'}], {'type': 'object'})     # Ollama の初回遅延を避ける

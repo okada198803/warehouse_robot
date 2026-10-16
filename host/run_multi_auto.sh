@@ -58,7 +58,7 @@ run_phase() {   # $1 = 条件(カンマ区切り) $2 = ワールド $3 = シナ�
   done
 }
 
-case "$CONDS" in *C1*) curl -s -m 3 localhost:11434 >/dev/null || { echo "Ollama が起動していません(C1 に必要)。起動してから再実行してください"; exit 1; };; esac
+case "$CONDS" in *C1*|*C4*) curl -s -m 3 localhost:11434 >/dev/null || { echo "Ollama が起動していません(C1 に必要)。起動してから再実行してください"; exit 1; };; esac
 
 BASE=$(echo "$CONDS" | tr ',' '\n' | grep -v '^C2' | paste -sd, -)
 WIDE=$(echo "$CONDS" | tr ',' '\n' | grep '^C2' | paste -sd, -)
