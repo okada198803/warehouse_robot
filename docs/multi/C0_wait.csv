@@ -1,0 +1,11 @@
+﻿scenario,cond,trial,ok_both,ok_r1,ok_r2,t_r1,t_r2,t_both,n_blocked_r1,n_blocked_r2,false_reg_r1,false_reg_r2,final_blocked_r1,final_blocked_r2,min_dist,plans_r1,plans_r2,blocks_r1,blocks_r2,error,started_at,avoid_r1,avoid_r2,t_coord,coord
+wait,C0,1,True,True,True,26.5,63.2,63.2,0,0,False,False,,,0.17,south_aisle→shipping,south_aisle→shipping,[],[],,2026-10-16 08:08:25,,,0.0,{}
+wait,C0,2,True,True,True,29.3,64.3,64.3,0,0,False,False,,,0.17,south_aisle→shipping,south_aisle→shipping,[],[],,2026-10-16 08:13:37,,,0.0,{}
+wait,C0,3,True,True,True,28.0,73.1,73.1,0,0,False,False,,,0.21,south_aisle→shipping,south_aisle→shipping,[],[],,2026-10-16 08:17:48,,,0.0,{}
+wait,C0,4,True,True,True,26.1,64.0,64.0,0,0,False,False,,,0.21,south_aisle→shipping,south_aisle→shipping,[],[],,2026-10-16 08:21:16,,,0.0,{}
+wait,C0,5,True,True,True,26.9,63.1,63.1,0,0,False,False,,,0.2,south_aisle→shipping,south_aisle→shipping,[],[],,2026-10-16 08:25:49,,,0.0,{}
+wait,C0,6,True,True,True,26.7,63.0,63.0,0,0,False,False,,,0.2,south_aisle→shipping,south_aisle→shipping,[],[],,2026-10-16 08:29:03,,,0.0,{}
+wait,C0,7,True,True,True,26.8,53.7,53.7,0,0,False,False,,,0.17,south_aisle→shipping,south_aisle→shipping,[],[],,2026-10-16 08:32:23,,,0.0,{}
+wait,C0,8,True,True,True,26.5,57.6,57.6,0,0,False,False,,,0.21,south_aisle→shipping,south_aisle→shipping,[],[],,2026-10-16 08:35:45,,,0.0,{}
+wait,C0,9,True,True,True,26.0,72.1,72.1,0,0,False,False,,,0.18,south_aisle→shipping,south_aisle→shipping,[],[],,2026-10-16 08:39:55,,,0.0,{}
+wait,C0,10,False,False,True,,81.5,,1,0,False,False,,,0.17,south_aisle→shipping / shipping,south_aisle→shipping,"[{""t"": 40.7, ""near"": null, ""cause"": ""unlocated"", ""hits"": null}]",[],r1:fail:failed,2026-10-16 08:43:17,,,0.0,{}

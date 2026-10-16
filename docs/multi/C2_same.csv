@@ -1,0 +1,7 @@
+﻿scenario,cond,trial,ok_both,ok_r1,ok_r2,t_r1,t_r2,t_both,n_blocked_r1,n_blocked_r2,false_reg_r1,false_reg_r2,final_blocked_r1,final_blocked_r2,min_dist,plans_r1,plans_r2,blocks_r1,blocks_r2,error,started_at,avoid_r1,avoid_r2,t_coord,coord
+same,C2,1,True,True,True,23.4,22.2,23.4,0,0,False,False,,,0.22,south_lane_e→shipping,south_lane_e→shipping,[],[],,2026-10-16 11:37:47,,,0.0,{}
+same,C2,2,True,True,True,23.6,21.3,23.6,0,0,False,False,,,0.22,south_lane_e→shipping,south_lane_e→shipping,[],[],,2026-10-16 11:38:22,,,0.0,{}
+same,C2,3,True,True,True,25.6,51.3,51.3,0,0,False,False,,,0.18,south_lane_e→shipping,south_lane_e→shipping,[],[],,2026-10-16 11:38:58,,,0.0,{}
+same,C2,4,True,True,True,23.6,21.3,23.6,0,0,False,False,,,0.22,south_lane_e→shipping,south_lane_e→shipping,[],[],,2026-10-16 11:40:07,,,0.0,{}
+same,C2,5,True,True,True,51.3,45.9,51.3,1,0,False,False,,,0.17,south_lane_e→shipping / shipping,south_lane_e→shipping,"[{""t"": 46.0, ""near"": null, ""cause"": ""unlocated"", ""hits"": null}]",[],,2026-10-16 11:40:48,,,0.0,{}
+same,C2,6,True,True,True,23.4,21.4,23.4,0,0,False,False,,,0.22,south_lane_e→shipping,south_lane_e→shipping,[],[],,2026-10-16 11:41:50,,,0.0,{}

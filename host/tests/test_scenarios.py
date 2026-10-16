@@ -80,3 +80,44 @@ def test_south_use_in_wide_world_for_lane_rule():
     assert M.uses_south(pl['r2'], 'shipping')                                  # だが経路は南通路を通る
     pl = planners('cross', 'warehouse_wide')
     assert not any(M.uses_south(p, M.ROBOTS[ns]['dest']) for ns, p in pl.items())
+
+
+# ---------- 追加シナリオ(stag・dest・dead・ばらつき) ----------
+def test_stag_is_opp_with_delayed_r2_and_late_coordination():
+    M.set_scenario('stag')
+    assert M.ROBOTS['r1'] == M.SCENARIOS['opp']['r1']
+    assert M.ROBOTS['r2']['home'] == 'shipping' and M.ROBOTS['r2']['delay'] == 6.0
+    assert M.FLAG.get('coord_at_depart') is True
+    it = intents('stag')
+    assert conflict(it['r1'], it['r2'])
+
+
+def test_dest_both_go_to_shipping_and_r2_needs_no_aisle():
+    it = intents('dest')
+    assert M.ROBOTS['r1']['dest'] == M.ROBOTS['r2']['dest'] == 'shipping'
+    assert it['r1']['aisle'] == 'south_aisle' and it['r2']['aisle'] is None
+    assert not conflict(it['r1'], it['r2'])
+
+
+def test_dead_robot_is_static_inside_south_aisle():
+    M.set_scenario('dead')
+    assert M.ROBOTS['r2'].get('static') and M.ROBOTS['r2'].get('dest') is None
+    assert M.POSES['r2'][:2] == (3.5, 1.05)
+    assert not any(c.get('static') for c in (M.ROBOTS['r1'],))
+
+
+def test_jitter_scenarios_share_base_and_are_reproducible():
+    for j, b in M.JITTER_BASE.items():
+        M.set_scenario(j)
+        assert M.JIT and M.ROBOTS is M.SCENARIOS[b]
+    M.set_scenario('oppj')
+    a = M.jitter_for(3, ['r1', 'r2'])
+    assert a == M.jitter_for(3, ['r1', 'r2']) and a != M.jitter_for(4, ['r1', 'r2'])
+    for dx, dy, dyaw, dl in a.values():
+        assert abs(dx) <= 0.15 and abs(dy) <= 0.15 and abs(dyaw) <= 0.3 and 0.0 <= dl <= 5.0
+
+
+def test_base_scenarios_have_no_jitter_or_flags():
+    for scn in ('opp', 'same', 'cross', 'wait'):
+        M.set_scenario(scn)
+        assert not M.JIT and not M.FLAG

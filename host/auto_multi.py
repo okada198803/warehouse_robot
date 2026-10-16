@@ -57,6 +57,23 @@ SCENARIOS = {
     'wait': {'r1': {'home': 'receiving', 'dest': 'shipping'},
              'r2': {'home': 'south_aisle', 'dest': 'shipping', 'delay': 25.0}},
 }
+#   stag  時間差の出発(逆向き): opp と同じ配置で、r2 は 6 秒遅れて出発する。通路の途中で遭遇する。協調(C1・C3)は r2 の出発時に行う
+#   dest  同じ目的地: 2 台とも出荷口へ(r1 は入荷口から、r2 は充電ステーションから)。目的地の手前で取り合う
+#   dead  恒久停止の台: r2 は南通路の中で停止したまま(故障)。r1 は入荷口 → 出荷口。通信できない台なので協調は働かない
+#   oppj・samej・crossj・waitj  opp・same・cross・wait に、試行ごとのばらつきを加えたもの
+#         (初期位置 ±0.15 m、向き ±0.3 rad、各台の出発遅れ 0〜5 秒。乱数は試行番号で固定し、条件間で同じ値を使う)
+SCENARIOS.update({
+    'stag': {'r1': {'home': 'receiving', 'dest': 'shipping'},
+             'r2': {'home': 'shipping', 'dest': 'receiving', 'delay': 6.0}},
+    'dest': {'r1': {'home': 'receiving', 'dest': 'shipping'},
+             'r2': {'home': 'charger', 'dest': 'shipping'}},
+    'dead': {'r1': {'home': 'receiving', 'dest': 'shipping'},
+             'r2': {'home': 'south_aisle', 'static': True}},
+})
+FLAGS = {'stag': {'coord_at_depart': True}}      # 遅れて出発する台は、出発時に協調する(他は試行の開始時に協調する)
+JITTER_BASE = {'oppj': 'opp', 'samej': 'same', 'crossj': 'cross', 'waitj': 'wait'}
+JIT = False
+FLAG = {}
 SCENARIO = 'opp'
 ROBOTS = SCENARIOS[SCENARIO]
 POSES = dict(POSES)      # opp 以外では set_scenario が地点の座標から作り直す
@@ -64,10 +81,10 @@ POSES = dict(POSES)      # opp 以外では set_scenario が地点の座標か�
 
 def set_scenario(name, places=None):
     """以降の試行で使うシナリオを選ぶ(ROBOTS と POSES を差し替える)。opp は元の設定のまま。"""
-    global SCENARIO, ROBOTS, POSES
-    SCENARIO = name
-    ROBOTS = SCENARIOS[name]
-    if name != 'opp':
+    global SCENARIO, ROBOTS, POSES, JIT, FLAG
+    base = JITTER_BASE.get(name, name)
+    SCENARIO, ROBOTS, JIT, FLAG = name, SCENARIOS[base], name in JITTER_BASE, FLAGS.get(base, {})
+    if base != 'opp':
         import yaml
         if places is None:
             with open(os.path.join(ROOT, 'ros2_ws', 'src', 'ai_nav', 'config', 'places_warehouse.yaml'),
@@ -81,10 +98,19 @@ def set_scenario(name, places=None):
         from ai_nav.multi_gen import ROBOTS as ORIG
         POSES = dict(ORIG)
 
+
+def jitter_for(trial, names):
+    """ばらつき(試行番号で固定): 台ごとの (x のずれ, y のずれ, 向きのずれ, 出発遅れ)。"""
+    import random
+    rng = random.Random(trial)
+    return {ns: (rng.uniform(-0.15, 0.15), rng.uniform(-0.15, 0.15), rng.uniform(-0.3, 0.3), rng.uniform(0.0, 5.0))
+            for ns in names}
+
+
 FIELDS = ['scenario', 'cond', 'trial', 'ok_both', 'ok_r1', 'ok_r2', 't_r1', 't_r2', 't_both',
           'n_blocked_r1', 'n_blocked_r2', 'false_reg_r1', 'false_reg_r2', 'final_blocked_r1',
           'final_blocked_r2', 'min_dist', 'plans_r1', 'plans_r2', 'blocks_r1', 'blocks_r2',
-          'error', 'started_at', 'avoid_r1', 'avoid_r2', 't_coord', 'coord']
+          'error', 'started_at', 'avoid_r1', 'avoid_r2', 't_coord', 'coord', 'delay_r1', 'delay_r2', 't_net']
 
 TEXT = '指定の経路で移動して'
 
@@ -144,12 +170,13 @@ class Tracker:
             self.f = None
 
 
-def reset(links, tr):
+def reset(links, tr, poses=None):
     """両ロボットを停止 → 初期位置へ → コストマップ消去。戻せなければ再起動を要求する。"""
     for link in links.values():
         link.send_plan({'action': 'stop'})
     time.sleep(2.0)
-    for ns, (x, y, yaw) in POSES.items():
+    poses = poses or POSES
+    for ns, (x, y, yaw) in poses.items():
         req = ('name: \\"LidarRobo4_%s\\" position {x: %.2f y: %.2f z: 0.075} '
                'orientation {z: %.4f w: %.4f}' % (ns, x, y, math.sin(yaw / 2), math.cos(yaw / 2)))
         for _ in range(2):
@@ -160,7 +187,7 @@ def reset(links, tr):
         for ns in POSES for k in ('global', 'local'))
     A.sh(clears, timeout=60)
     time.sleep(2.5)
-    for ns, (x, y, _) in POSES.items():
+    for ns, (x, y, _) in poses.items():
         p = tr.pos.get(ns)
         if p is None or abs(p[0] - x) > 0.3 or abs(p[1] - y) > 0.3:
             raise A.NeedRestart(f'{ns} を初期位置に戻せない: {p}')
@@ -189,7 +216,14 @@ def run_trial(links, tr, cond, trial, chans=None, llm=None):
     tag = f'{cond}{"" if SCENARIO == "opp" else "_" + SCENARIO}{os.environ.get("MULTI_SUFFIX", "")}_{trial:02d}'
     os.makedirs(LOGS, exist_ok=True)
     row = {'scenario': SCENARIO, 'cond': cond, 'trial': trial, 'started_at': time.strftime('%Y-%m-%d %H:%M:%S'), 'error': ''}
-    reset(links, tr)
+    movers = [ns for ns, c in ROBOTS.items() if not c.get('static')]
+    poses, jit = dict(POSES), {}
+    if JIT:
+        for ns, (dx, dy, dyaw, dl) in jitter_for(trial, movers).items():
+            x, y, yaw = POSES[ns]
+            poses[ns], jit[ns] = (x + dx, y + dy, yaw + dyaw), dl
+    delays = {ns: ROBOTS[ns].get('delay', 0.0) + jit.get(ns, 0.0) for ns in movers}
+    reset(links, tr, poses)
     tr.begin(os.path.join(LOGS, tag + '.jsonl'))
     planners, plans, blocks, result = {}, {ns: [] for ns in ROBOTS}, {ns: [] for ns in ROBOTS}, {}
     try:
@@ -219,32 +253,61 @@ def run_trial(links, tr, cond, trial, chans=None, llm=None):
                 return True
             return False
 
-        for ns, cfg in ROBOTS.items():
-            p = Planner('warehouse_wide' if cond.startswith('C2') else 'warehouse', make_stub(cfg['dest']))
+        def fresh(ns):
+            """ns の出発時の状態の Planner(中央が把握している、各台の元の計画の起点)。"""
+            cfg = ROBOTS[ns]
+            p = Planner('warehouse_wide' if cond.startswith('C2') else 'warehouse', make_stub(cfg.get('dest')))
             if cfg.get('pose'):
                 p.pose = tuple(cfg['pose'][:2])
             else:
                 p.last_arrived = cfg['home']
-            planners[ns] = p
+            return p
+
+        for ns in ROBOTS:
+            planners[ns] = fresh(ns)
         avoid = {ns: set() for ns in ROBOTS}
         coord = {}
+        late = {ns for ns in movers if FLAG.get('coord_at_depart') and delays[ns] > 0}   # 出発時に協調する台
+
+        def coordinate_late(ns):
+            """遅れて出発する台の協調。すでに走っている台の計画は変えず、この台だけが通路を選ぶ。"""
+            if cond == 'C3':
+                higher = [n for n in PRIORITY if n in movers and PRIORITY.index(n) < PRIORITY.index(ns)]
+                got = chans[ns].wait_for(higher, 3.0)
+                it, av, ok = resolve(planners[ns], ns, ROBOTS[ns]['dest'], list(got.values()))
+                avoid[ns] = av
+                chans[ns].announce(it)
+                coord[ns] = {'received': sorted(got), 'resolved': ok, 'aisle': it['aisle'], 'late': True}
+            elif cond == 'C1':
+                view = {n: (planners[n] if n == ns else fresh(n)) for n in movers}
+                av, info = central_assign(llm, view, {n: ROBOTS[n]['dest'] for n in movers})
+                avoid[ns] = av.get(ns, set())
+                coord['late_' + ns] = {k: v for k, v in info.items()}
+            tr.log('coord_late', ns=ns, avoid=sorted(avoid[ns]), info=coord.get(ns) or coord.get('late_' + ns))
+
         if cond == 'C3':        # 優先順位の高い順に、相手の意図を受け取ってから自分の通路を決めて知らせる
-            order = [n for n in PRIORITY if n in ROBOTS]
+            order = [n for n in PRIORITY if n in movers]
             for ns in order:
                 chans[ns].reset(tag)
             for k, ns in enumerate(order):
-                got = chans[ns].wait_for(order[:k], 3.0)
+                if ns in late:
+                    continue
+                got = chans[ns].wait_for([o for o in order[:k] if o not in late], 3.0)
                 it, av, ok = resolve(planners[ns], ns, ROBOTS[ns]['dest'], list(got.values()))
                 avoid[ns] = av
                 chans[ns].announce(it)
                 coord[ns] = {'received': sorted(got), 'resolved': ok, 'aisle': it['aisle']}
-        elif cond == 'C1':      # 全ロボットの状況を統制 LLM に渡し、避ける通路を割り当てさせる
-            avoid, info = central_assign(llm, planners, {ns: c['dest'] for ns, c in ROBOTS.items()})
+        elif cond == 'C1' and not late:      # 全ロボットの状況を統制 LLM に渡し、避ける通路を割り当てさせる
+            av, info = central_assign(llm, {n: planners[n] for n in movers}, {n: ROBOTS[n]['dest'] for n in movers})
+            avoid.update(av)
             coord = {k: v for k, v in info.items()}
         t_coord = round(time.monotonic() - t0, 1)
         tr.log('coord', avoid={ns: sorted(a) for ns, a in avoid.items()}, info=coord)
-        pending = {ns: c['delay'] for ns, c in ROBOTS.items() if c.get('delay')}    # 待機してから出発する台(wait)
+        pending = {ns: d for ns, d in delays.items() if d}    # 待機・遅れてから出発する台(wait・stag・ばらつき)
         for ns in ROBOTS:
+            if ROBOTS[ns].get('static'):
+                result[ns] = ('ok', 0.0)       # 停止したままの台(dead)は、到着を求めない
+        for ns in movers:
             if ns not in pending:
                 send(ns, with_avoid(planners[ns], avoid[ns], lambda ns=ns: planners[ns].handle_user(TEXT)))
 
@@ -252,6 +315,8 @@ def run_trial(links, tr, cond, trial, chans=None, llm=None):
             for ns in [n for n, d in pending.items() if time.monotonic() - t0 >= d]:
                 del pending[ns]
                 tr.log('depart', ns=ns)
+                if ns in late:
+                    coordinate_late(ns)
                 send(ns, with_avoid(planners[ns], avoid[ns], lambda ns=ns: planners[ns].handle_user(TEXT)))
             for ns in ROBOTS:
                 if ns in result or ns in pending:
@@ -291,10 +356,13 @@ def run_trial(links, tr, cond, trial, chans=None, llm=None):
         row[f'final_blocked_{ns}'] = '|'.join(sorted(planners[ns].blocked))
         row[f'plans_{ns}'] = ' / '.join('→'.join(p) for p in plans[ns])
         row[f'blocks_{ns}'] = json.dumps(blocks[ns], ensure_ascii=False)
+    row['delay_r1'], row['delay_r2'] = (round(delays.get(ns, 0.0), 1) for ns in ('r1', 'r2'))
     row['ok_both'] = row['ok_r1'] and row['ok_r2']
+    row['t_net'] = (round(max(row[f't_{ns}'] - delays.get(ns, 0.0) for ns in ROBOTS), 1)
+                    if row['ok_both'] else '')      # 各台の出発遅れを除いた、両台到着までの時間
     row['t_both'] = max(row['t_r1'], row['t_r2']) if row['ok_both'] else ''
     row['min_dist'] = round(tr.mind, 2)
-    row['avoid_r1'], row['avoid_r2'] = ('|'.join(sorted(avoid[ns])) for ns in ('r1', 'r2'))
+    row['avoid_r1'], row['avoid_r2'] = ('|'.join(sorted(avoid.get(ns, ()))) for ns in ('r1', 'r2'))
     row['t_coord'] = t_coord
     row['coord'] = json.dumps(coord, ensure_ascii=False)
     bad = [f'{ns}:{result[ns][0]}' for ns in ROBOTS if result[ns][0] != 'ok']
@@ -328,7 +396,7 @@ def main():
     ap.add_argument('--conds', '--cond', dest='conds', default='C0',
                     help='条件をカンマ区切りで。試行は条件を交互に実行する(例 C3,C1)')
     ap.add_argument('--n', type=int, default=10)
-    ap.add_argument('--scenario', default=os.environ.get('SCENARIO', 'opp'), choices=list(SCENARIOS))
+    ap.add_argument('--scenario', default=os.environ.get('SCENARIO', 'opp'), choices=list(SCENARIOS) + list(JITTER_BASE))
     ap.add_argument('--host', default='localhost')
     ap.add_argument('--max-errors', type=int, default=3)
     ap.add_argument('--model', default='qwen2.5:7b', help='C1 の統制 LLM')

@@ -5,7 +5,7 @@
 #   ./run_multi_auto.sh C3,C1,C2w,C2                                      # 全条件(ワールドごとに段階を分け、切り替え時に再起動)
 #   N=3 ./run_multi_auto.sh C3                                            # 試運転(回数を減らす)
 #   SCEN=same,cross,wait ./run_multi_auto.sh C0,C1,C3,C2                  # シナリオを指定(既定 opp = 正面すれ違い。同方向 same / 交差 cross / 待機 wait)
-#   cross では C2(南通路の車線規則)は経路が南通路を通らないため対象外(自動で飛ばす)
+#   cross・crossj・dest では C2(南通路の車線規則)は対象外(自動で飛ばす)。追加: stag(時間差)・dest(同じ目的地)・dead(恒久停止)・oppj samej crossj waitj(ばらつき)
 # 事前: Docker Desktop を起動。C1 を含むときは Ollama も起動(qwen2.5:7b)。単体構成のコンテナは止めておく。
 # 結果: ../docs/multi/<条件>.csv(opp)・<条件>_<シナリオ>.csv と summary*.md、ログ ../docs/multi/logs/(完了済みの試行は飛ばす)
 set -u
@@ -66,7 +66,7 @@ for S in $(echo "$SCEN" | tr ',' ' '); do      # ワールドごとに段階を�
   run_phase "$BASE" warehouse "$S" || exit 1
 done
 for S in $(echo "$SCEN" | tr ',' ' '); do
-  [ "$S" = cross ] && continue                  # cross では C2 は対象外
+  case "$S" in cross|crossj|dest) continue;; esac     # 経路が南通路を通らない(または規則が無関係な)シナリオでは C2 は対象外
   run_phase "$WIDE" warehouse_wide "$S" || exit 1
 done
 python analyze_multi.py

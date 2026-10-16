@@ -12,7 +12,9 @@ import statistics as st
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', 'docs', 'multi')
-SCEN_NAMES = {'opp': '正面すれ違い', 'same': '同方向(追従)', 'cross': '交差(別の目的地)', 'wait': '通路内で待機中の台'}
+SCEN_NAMES = {'opp': '正面すれ違い', 'same': '同方向(追従)', 'cross': '交差(別の目的地)', 'wait': '通路内で待機中の台',
+              'stag': '時間差の出発(逆向き)', 'dest': '同じ目的地', 'dead': '恒久停止の台',
+              'oppj': '正面すれ違い(ばらつき)', 'samej': '同方向(ばらつき)', 'crossj': '交差(ばらつき)', 'waitj': '待機(ばらつき)'}
 CONTACT = 0.22     # [m] この距離以下は接触の可能性(ロボットの大きさ約 0.16 × 0.23 m)
 NAMES = {'C0': 'C0 協調なし', 'C1a': 'C1a 統制LLM 第1版(避ける通路を出力)', 'C1': 'C1 統制LLM 第2版(通る通路を出力)', 'C2w': 'C2w 環境: 広い通路のみ', 'C2': 'C2 環境: 広い通路 + 車線の通行規則', 'C3': 'C3 ロボット間通信'}
 
@@ -51,7 +53,8 @@ def fl(x):
 def summarize(cond, rows):
     n = len(rows)
     ok = [r for r in rows if r['ok_both'] == 'True']
-    ts = [fl(r['t_both']) for r in ok if fl(r['t_both']) is not None]
+    # t_net(各台の出発遅れを除いた時間)があればそれを、なければ t_both(試行開始からの時間)を使う
+    ts = [v for v in (fl(r.get('t_net')) if fl(r.get('t_net')) is not None else fl(r['t_both']) for r in ok) if v is not None]
     md = [fl(r['min_dist']) for r in rows if fl(r['min_dist']) is not None]
     lo, hi = wilson(len(ok), n)
     out = {'cond': cond, 'n': n, 'ok': len(ok), 'ci': (lo, hi),
@@ -117,7 +120,13 @@ def main():
             continue
         lines = [f'# 複数ロボット検証の集計({SCEN_NAMES[scn]} 2 台)', ''] + table(res, scn)
         lines += ['', f'注: 接触の可能性 = 台間の最小距離が {CONTACT} m 以下。同一シナリオの繰り返しで、位置の初期値は固定。']
-        if scn == 'wait':
+        if scn in ('stag', 'oppj', 'samej', 'crossj', 'waitj'):
+            lines.append('注: 到着時間は各台の出発遅れを除いた値(t_net)。')
+        if scn == 'dest':
+            lines.append('注: 2 台とも出荷口が目的地。先に着いた台が出荷口に留まるため、後から着く台は目的地を占有されている。')
+        if scn == 'dead':
+            lines.append('注: r2 は南通路の中で停止したままで、到着を求めない(両台到着 = r1 の到着)。通行止めの登録は、停止した r2 による実際の閉塞への正しい登録(誤登録ではない)。C1・C3 は通信できない台とは協調できないため、C0 と同じ動作になる。')
+        if scn in ('wait', 'waitj'):
             lines.append('注: wait では r2 が南通路内で 25 秒待機してから出発する。通行止めの登録は、待機中の r2 を障害物として確認した結果(試行の終了時には塞がっていない)。')
         text = '\n'.join(lines) + '\n'
         print(text)
