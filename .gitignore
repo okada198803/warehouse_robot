@@ -22,3 +22,4 @@ docs/説明資料_*.pdf
 host/experience.json.bak
 host/pointing_calib.json
 docs/multi/logs/
+docs/multi/*_video.csv

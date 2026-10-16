@@ -106,7 +106,8 @@ def table(res, scn):
 
 
 def main():
-    stems = sorted(os.path.basename(p)[:-4] for p in (glob.glob(os.path.join(OUT, 'C*.csv')) + glob.glob(os.path.join(OUT, 'N*.csv'))))
+    stems = sorted(os.path.basename(p)[:-4] for p in (glob.glob(os.path.join(OUT, 'C*.csv')) + glob.glob(os.path.join(OUT, 'N*.csv')))
+                   if '_video' not in os.path.basename(p))     # 動画の収録用(MULTI_SUFFIX=_video)は集計に含めない
     groups = {}
     for stem in stems:
         cond, scn, _ = parse(stem)
