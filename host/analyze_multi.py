@@ -106,7 +106,7 @@ def table(res, scn):
 
 
 def main():
-    stems = sorted(os.path.basename(p)[:-4] for p in glob.glob(os.path.join(OUT, 'C*.csv')))
+    stems = sorted(os.path.basename(p)[:-4] for p in (glob.glob(os.path.join(OUT, 'C*.csv')) + glob.glob(os.path.join(OUT, 'N*.csv'))))
     groups = {}
     for stem in stems:
         cond, scn, _ = parse(stem)
