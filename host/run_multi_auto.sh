@@ -19,20 +19,21 @@ SCEN=${SCEN:-opp}
 mkdir -p ../docs/multi/logs
 SRC="source /opt/ros/humble/setup.bash && source /home/ubuntu/ros2_ws/install/setup.bash"
 
-dexec() { (cd "$DOCKER_DIR" && docker compose exec -T -u ubuntu ros bash -c "$*"); }
+# docker exec が応答しなくなることがあるため、一定時間(既定 240 秒、TMO で変更)で打ち切る(macOS に timeout は無いので perl の alarm を使う)
+dexec() { (cd "$DOCKER_DIR" && perl -e 'alarm shift; exec @ARGV' "${TMO:-240}" docker compose exec -T -u ubuntu ros bash -c "$*"); }
 
 sim_up() {   # $1 = 期待するワールド
-  dexec "$SRC && ros2 lifecycle get /r1/bt_navigator 2>/dev/null | grep -q active && ros2 lifecycle get /r2/bt_navigator 2>/dev/null | grep -q active && [ \$(ros2 node list 2>/dev/null | grep -c plan_executor) = 2 ] && [ \"\$(cat /tmp/multi_world 2>/dev/null)\" = $1 ]" \
+  TMO=90 dexec "$SRC && ros2 lifecycle get /r1/bt_navigator 2>/dev/null | grep -q active && ros2 lifecycle get /r2/bt_navigator 2>/dev/null | grep -q active && [ \$(ros2 node list 2>/dev/null | grep -c plan_executor) = 2 ] && [ \"\$(cat /tmp/multi_world 2>/dev/null)\" = $1 ]" \
     && nc -z localhost 9091
 }
 
 hard_restart() {   # $1 = ワールド
   echo "[$(date +%T)] シミュレータを(再)起動します(world=$1)"
-  (cd "$DOCKER_DIR" && docker compose up -d) || return 1
+  (cd "$DOCKER_DIR" && docker compose up -d && docker compose restart) || return 1     # restart で、固まったコンテナ内の処理もすべて止める
   dexec "bash /home/ubuntu/ros2_ws/stop_nav.sh" >/dev/null 2>&1      # 停止と起動は別のコマンドにする(pkill -f が自分を止めるため)
   dexec "$SRC && cd ~/ros2_ws && colcon build --symlink-install > /tmp/build.log 2>&1" || { echo "colcon build に失敗(コンテナ内 /tmp/build.log)"; return 1; }
   dexec "echo $1 > /tmp/multi_world"
-  (cd "$DOCKER_DIR" && docker compose exec -T -d -u ubuntu ros setsid bash /home/ubuntu/ros2_ws/run_multi.sh world:=$1)
+  (cd "$DOCKER_DIR" && perl -e 'alarm shift; exec @ARGV' 90 docker compose exec -T -d -u ubuntu ros setsid bash /home/ubuntu/ros2_ws/run_multi.sh world:=$1)
   for i in $(seq 1 60); do      # 最大 5 分待つ
     sleep 5
     if sim_up "$1"; then echo "[$(date +%T)] 起動完了(約 $((i*5)) 秒)"; sleep 5; return 0; fi
