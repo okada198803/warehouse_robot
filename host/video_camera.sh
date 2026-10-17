@@ -1,7 +1,7 @@
 #!/bin/bash
 # Gazebo の画面のカメラを切り替える(動画でロボットを判別しやすくする)。Mac の T2 から実行する。
-#   ./video_camera.sh top            真上から。倉庫全体を画面いっぱいに(既定は z=7.5 → 5.2)
-#   ./video_camera.sh top 4.5        高さを指定(小さいほど拡大)
+#   ./video_camera.sh top            真上から。倉庫全体を画面いっぱいに(既定は z=7.5 → 2.8)
+#   ./video_camera.sh top 3.5        高さを指定(小さいほど拡大)
 #   ./video_camera.sh follow         ロボットを追従(既定のオフセット: 後方 1.6 m・上 1.8 m)
 #   ./video_camera.sh follow 1.2 1.4 後方・上のオフセットを指定
 #   ./video_camera.sh free           追従を解除
@@ -13,7 +13,7 @@ source /opt/ros/humble/setup.bash >/dev/null 2>&1
 MODE=$1; A=$2; B=$3
 case "$MODE" in
   top)
-    Z=${A:-5.2}
+    Z=${A:-2.8}
     # 真上を向き、倉庫の長辺(x)を画面の横に合わせる(roll 0, pitch 90°, yaw 90°)
     Q=$(python3 -c "
 import math
