@@ -4,9 +4,11 @@
 #   ./video_camera.sh top 3.5        高さを指定(小さいほど拡大)
 #   ./video_camera.sh follow         ロボットを追従(既定のオフセット: 後方 1.6 m・上 1.8 m)
 #   ./video_camera.sh follow 1.2 1.4 後方・上のオフセットを指定
+#   MULTI=1 ./video_camera.sh top    複数台用コンテナ(場面 7)。追従は使わない
 #   ./video_camera.sh free           追従を解除
 cd "$(dirname "$0")/../docker" || exit 1
-export COMPOSE_FILE=compose.yaml
+# 複数台用コンテナ(pai-ros-multi)のときは MULTI=1 を付ける
+if [ "${MULTI:-0}" = 1 ]; then export COMPOSE_FILE=compose.multi.yaml; else export COMPOSE_FILE=compose.yaml; fi
 MODE="${1:-top}"; A="${2:-}"; B="${3:-}"
 docker compose exec -T -u ubuntu ros bash -s "$MODE" "$A" "$B" <<'SH'
 source /opt/ros/humble/setup.bash >/dev/null 2>&1
