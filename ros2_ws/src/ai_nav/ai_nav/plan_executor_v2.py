@@ -5,7 +5,7 @@
                  'queue'         : 元の動作(未到達の通路だけを候補にする)
   abort_retry    Nav2 が中断(ABORTED)したとき、コストマップを消して同じ目的地を再送する回数(既定 1。型 B の修正)
                  0 で元の動作(中断で失敗とする)
-  retreat_timeout 立ち往生の後に後退する時間の上限 [s](既定 40。元は 15 で固定)
+  retreat_timeout 通路を特定できた立ち往生の後に後退する時間の上限 [s](既定 40。元は 15 で固定。特定できない停止は 15 のまま)
                  元の 15 秒(0.1 m/s で 1.5 m)では、幅 0.9 m の通路の後半で止まったときに通路の外へ出られず、
                  通路の中で向きを変えようとして壁際で止まった(動作確認 C0 dead #1、docs/perception/動作確認.md)。
                  通路の中心から retreat_clear(2.5 m)離れるまで後退を続け、ホールで向きを変えさせる
@@ -62,7 +62,8 @@ class PlanExecutorV2(PlanExecutor):
         if self.odom_xy and r['near'] in self.places:
             c = self.places[r['near']]
             away = math.dist(self.odom_xy, (c['x'], c['y'])) >= self.retreat_clear
-        limit = self.get_parameter('retreat_timeout').value
+        # 通路を特定できた停止だけ、通路の外へ出るまで長く後退する。特定できない停止(ホールなど)は元の 15 秒
+        limit = self.get_parameter('retreat_timeout').value if r['near'] in self.places else 15.0
         if away or moved >= self.retreat_dist or self.now() - r['t0'] > limit:
             self.retreat = None
             self.cmd_pub.publish(Twist())
