@@ -1,0 +1,119 @@
+"""認識層(M8)の分類器を学習し、元の規則(点数 ≥ 16)と比べる。numpy のみ使用。
+
+    python3 tools/train_recognizer.py --train d1.jsonl d2.jsonl --test d3.jsonl --out config/recognizer.json --report r.md
+
+学習とテストは別の乱数の種で生成したファイル(テストの配置は学習に含まれない)。
+"""
+import argparse
+import json
+import os
+import sys
+
+import numpy as np
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+from ai_nav.plan_logic import load_places  # noqa: E402
+from ai_nav.scan_features import features  # noqa: E402
+
+PKG = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+RULE_TH = 16
+
+
+def load(paths):
+    places = {}
+    X, y, hits, meta = [], [], [], []
+    for p in paths:
+        for line in open(p):
+            r = json.loads(line)
+            w = r['world']
+            if w not in places:
+                places[w] = load_places(os.path.join(PKG, 'config', f'places_{w}.yaml'))
+            a = places[w][r['aisle']]
+            X.append(features(r['ranges'], r['angle_min'], r['angle_increment'], r['range_min'], r['range_max'],
+                              r['pose'][:2], r['pose'][2], a))
+            y.append(r['label'])
+            hits.append(r['rule_hits'])
+            meta.append((w, r['aisle'], (r['obj'] or {}).get('type', 'none')))
+    return np.array(X, float), np.array(y, float), np.array(hits), meta
+
+
+def train(X, y, hidden=32, epochs=400, lr=0.01, l2=1e-4, seed=0):
+    rng = np.random.default_rng(seed)
+    n, d = X.shape
+    w1 = rng.normal(0, np.sqrt(2 / d), (hidden, d)); b1 = np.zeros(hidden)
+    w2 = rng.normal(0, np.sqrt(1 / hidden), hidden); b2 = 0.0
+    params = [w1, b1, w2, np.array([b2])]
+    m = [np.zeros_like(p) for p in params]; v = [np.zeros_like(p) for p in params]
+    pos = y.mean(); cw = np.where(y > 0.5, 0.5 / max(pos, 1e-6), 0.5 / max(1 - pos, 1e-6))   # 不均衡の補正
+    for t in range(1, epochs + 1):
+        w1, b1, w2, b2a = params
+        h = np.maximum(0, X @ w1.T + b1)
+        z = h @ w2 + b2a[0]
+        p = 1 / (1 + np.exp(-np.clip(z, -30, 30)))
+        g = (p - y) * cw / n
+        gw2 = h.T @ g + l2 * w2; gb2 = np.array([g.sum()])
+        gh = np.outer(g, w2) * (h > 0)
+        gw1 = gh.T @ X + l2 * w1; gb1 = gh.sum(0)
+        for i, gr in enumerate([gw1, gb1, gw2, gb2]):
+            m[i] = 0.9 * m[i] + 0.1 * gr; v[i] = 0.999 * v[i] + 0.001 * gr * gr
+            params[i] = params[i] - lr * (m[i] / (1 - 0.9 ** t)) / (np.sqrt(v[i] / (1 - 0.999 ** t)) + 1e-8)
+    return params
+
+
+def predict(params, X):
+    w1, b1, w2, b2a = params
+    h = np.maximum(0, X @ w1.T + b1)
+    return 1 / (1 + np.exp(-np.clip(h @ w2 + b2a[0], -30, 30)))
+
+
+def table(name, pred, y, meta):
+    tp = int(((pred == 1) & (y == 1)).sum()); tn = int(((pred == 0) & (y == 0)).sum())
+    fp = int(((pred == 1) & (y == 0)).sum()); fn = int(((pred == 0) & (y == 1)).sum())
+    acc = (tp + tn) / len(y)
+    rows = [f'| {name} | {acc * 100:.1f}% | {tp} | {fn} | {fp} | {tn} |']
+    return rows, (acc, tp, fn, fp, tn)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--train', nargs='+', required=True)
+    ap.add_argument('--test', nargs='+', required=True)
+    ap.add_argument('--out', required=True)
+    ap.add_argument('--report', required=True)
+    args = ap.parse_args()
+    Xtr, ytr, _htr, _ = load(args.train)
+    Xte, yte, hte, mte = load(args.test)
+    mean = Xtr.mean(0); std = Xtr.std(0) + 1e-6
+    params = train((Xtr - mean) / std, ytr)
+    pte = predict(params, (Xte - mean) / std)
+    learned = (pte >= 0.5).astype(int)
+    rule = (hte >= RULE_TH).astype(int)
+    lines = ['# 認識層(M8)の学習とテスト', '',
+             f'- 学習: {len(ytr)} 件({", ".join(os.path.basename(p) for p in args.train)})、障害物あり {int(ytr.sum())}',
+             f'- テスト: {len(yte)} 件({", ".join(os.path.basename(p) for p in args.test)})、障害物あり {int(yte.sum())}',
+             f'- 規則: 確認帯の点数 ≥ {RULE_TH}。学習: 格子の点数 {Xtr.shape[1] - 4} + 相対位置 4 → 全結合 32 → 1', '',
+             '| 判定 | 正解率 | 障害物あり→あり | あり→なし(見逃し) | なし→あり(誤登録) | なし→なし |', '|---|---|---|---|---|---|']
+    r1, _ = table('規則(点数 ≥ 16)', rule, yte, mte)
+    r2, _ = table('学習', learned, yte, mte)
+    lines += r1 + r2 + ['', '## 内訳(テスト)', '', '| ワールド | 通路 | 物体 | 件数 | 規則の誤り | 学習の誤り |', '|---|---|---|---|---|---|']
+    keys = sorted(set(mte))
+    for k in keys:
+        idx = [i for i, mm in enumerate(mte) if mm == k]
+        er = int((rule[idx] != yte[idx]).sum()); el = int((learned[idx] != yte[idx]).sum())
+        lines.append(f'| {k[0]} | {k[1]} | {k[2]} | {len(idx)} | {er} | {el} |')
+    neg = (yte == 0)
+    lines += ['', f'- 障害物なし(または帯の外)の点数: 最大 {int(hte[neg].max()) if neg.any() else "-"}、'
+              f'16 以上 {int((hte[neg] >= RULE_TH).sum())} 件',
+              f'- 障害物ありの点数: 最小 {int(hte[~neg].min()) if (~neg).any() else "-"}、'
+              f'16 未満 {int((hte[~neg] < RULE_TH).sum())} 件']
+    open(args.report, 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
+    w1, b1, w2, b2a = params
+    json.dump({'mean': mean.tolist(), 'std': std.tolist(), 'w1': w1.tolist(), 'b1': b1.tolist(),
+               'w2': w2.tolist(), 'b2': float(b2a[0]), 'threshold': 0.5,
+               'note': '認識層(M8)。tools/train_recognizer.py で学習。特徴量は ai_nav/scan_features.py'},
+              open(args.out, 'w'))
+    print('\n'.join(lines))
+
+
+if __name__ == '__main__':
+    main()
