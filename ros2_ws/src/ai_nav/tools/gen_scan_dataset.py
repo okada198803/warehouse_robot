@@ -172,7 +172,7 @@ def sample_object(rng, aisle, robot_xy, bx):
         sx, sy, _sz = OBJECTS[t]
         x = aisle['x'] + rng.uniform(-1.6, 1.6)
         y = aisle['y'] + rng.uniform(-0.35, 0.35)
-        if math.dist((x, y), robot_xy) < 0.55:
+        if math.dist((x, y), robot_xy) < 0.8:    # パレットの対角の半分 0.43 + ロボット 0.22 + 余裕。重なると瞬間移動でロボットが弾かれる
             continue
         if t == 'robot' and any(rect_overlap(x, y, sx, sy, b) for b in bx):
             continue
@@ -213,13 +213,21 @@ def main():
                     ign_set_pose(f'ds_{name}', PARK[0], PARK[1], sz / 2)
             if not ign_set_pose(ROBOT, x, y, 0.075, yaw):
                 continue
-            t_moved = tap.sim_now()
-            m = tap.after(t_moved + 0.6)     # 移動の完了後、0.6 秒(シミュレータ時刻)以降のスキャン
+            mis, m = 99.0, None
+            for attempt in range(3):     # 合わなければ置き直す(倒れた・弾かれたロボットを立て直す)
+                if attempt and not ign_set_pose(ROBOT, x, y, 0.075, yaw):
+                    break
+                t_moved = tap.sim_now()
+                m = tap.after(t_moved + 0.6)     # 移動の完了後、0.6 秒(シミュレータ時刻)以降のスキャン
+                if m is None:
+                    break
+                mis = static_mismatch(m, x, y, yaw, bx)
+                if mis <= 0.15:
+                    break
             if m is None:
                 print('スキャンが来ません。シミュレータを確認してください')
                 break
-            mis = static_mismatch(m, x, y, yaw, bx)
-            if mis > 0.15:      # スキャンが記録した位置のものでない(移動の反映前など)。記録せずにやり直す
+            if mis > 0.15:      # 3 回置いても位置とスキャンが合わない。記録せずに次の配置へ
                 print(f'位置とスキャンが合いません(差の中央値 {mis:.2f} m)。この配置は記録しません')
                 continue
             rec = {'mismatch': round(mis, 3), 'world': args.world, 'aisle': a, 'pose': [round(x, 3), round(y, 3), round(yaw, 4)],
