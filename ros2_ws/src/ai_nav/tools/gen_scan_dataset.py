@@ -150,17 +150,26 @@ def static_mismatch(m, x, y, yaw, bx):
     return errs[len(errs) // 2] if errs else 99.0
 
 
-def sample_pose(rng, aisles, places, bx):
+def sample_pose(rng, aisles, places, bx, region='aisle'):
+    """region=aisle: 通路の範囲内(停止原因の判定の状況)。region=hall: 通路の外のホール(事前確認の状況。
+    口頭で解除された通路を、走る前に入荷口などから見る)。"""
     for _ in range(500):
         a = rng.choice(aisles)
         p = places[a]
-        x = p['x'] + rng.uniform(-1.6, 1.6)
-        y = p['y'] + rng.uniform(-1.1, 1.1)
+        if region == 'hall':
+            x = rng.choice([rng.uniform(0.4, 1.9), rng.uniform(5.1, 6.6)])
+            y = rng.uniform(0.3, 4.7)
+        else:
+            x = p['x'] + rng.uniform(-1.6, 1.6)
+            y = p['y'] + rng.uniform(-1.1, 1.1)
         if any(circle_hits_box(x, y, R_ROBOT, b) for b in bx):
             continue
         if not (0.25 < x < 6.75 and 0.25 < y < 4.75):
             continue
-        yaw = rng.choice([0.0, math.pi]) + rng.gauss(0.0, 0.5)
+        if region == 'hall':   # 通路の方向を向く(事前確認は通路へ向かう途中に行う)
+            yaw = math.atan2(p['y'] - y, p['x'] - x) + rng.gauss(0.0, 0.5)
+        else:
+            yaw = rng.choice([0.0, math.pi]) + rng.gauss(0.0, 0.5)
         return a, x, y, yaw
     raise RuntimeError('位置を選べません')
 
@@ -187,6 +196,7 @@ def main():
     ap.add_argument('--seed', type=int, default=1)
     ap.add_argument('--p-obj', type=float, default=0.5, help='障害物を置く割合')
     ap.add_argument('--out', required=True)
+    ap.add_argument('--region', default='aisle', choices=['aisle', 'hall'])
     args = ap.parse_args()
 
     places = load_places(os.path.join(PKG, 'config', f'places_{args.world}.yaml'))
@@ -204,7 +214,7 @@ def main():
     with open(args.out, 'a') as f:
         i = done
         while i < args.n:
-            a, x, y, yaw = sample_pose(rng, aisles, places, bx)
+            a, x, y, yaw = sample_pose(rng, aisles, places, bx, args.region)
             obj = sample_object(rng, places[a], (x, y), bx) if rng.random() < args.p_obj else None
             for name, (_sx, _sy, sz) in OBJECTS.items():
                 if obj and obj[0] == name:
@@ -230,7 +240,7 @@ def main():
             if mis > 0.15:      # 3 回置いても位置とスキャンが合わない。記録せずに次の配置へ
                 print(f'位置とスキャンが合いません(差の中央値 {mis:.2f} m)。この配置は記録しません')
                 continue
-            rec = {'mismatch': round(mis, 3), 'world': args.world, 'aisle': a, 'pose': [round(x, 3), round(y, 3), round(yaw, 4)],
+            rec = {'mismatch': round(mis, 3), 'region': args.region, 'world': args.world, 'aisle': a, 'pose': [round(x, 3), round(y, 3), round(yaw, 4)],
                    'angle_min': m.angle_min, 'angle_increment': m.angle_increment,
                    'range_min': m.range_min, 'range_max': m.range_max,
                    'ranges': [round(r, 3) if math.isfinite(r) else None for r in m.ranges],
