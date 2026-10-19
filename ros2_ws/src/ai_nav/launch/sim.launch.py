@@ -21,6 +21,12 @@ WORLDS = {
         'extra_models': [],
         'spawn': (0.8, 0.8, 0.0),
     },
+    # 複数台の C2(南通路の仕切りを外した幅 1.5 m)。認識層の学習データの生成(tools/gen_scan_dataset.py)でも使う
+    'warehouse_wide': {
+        'sdf': ('ai_nav', 'worlds', 'warehouse_wide.sdf'),
+        'extra_models': [],
+        'spawn': (0.8, 0.8, 0.0),
+    },
     'field': {
         'sdf': ('nav_dev', 'models', 'worlds', 'nav_slam.sdf'),
         'extra_models': [('nav_dev', 'models', 'field', 'model.sdf')],
