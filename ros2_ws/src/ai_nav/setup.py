@@ -27,6 +27,7 @@ setup(
     entry_points={
         'console_scripts': [
             'plan_executor = ai_nav.plan_executor:main',
+            'plan_executor_v2 = ai_nav.plan_executor_v2:main',
             'obstacle = ai_nav.obstacle:main',
             'cargo_sim = ai_nav.cargo_sim:main',
         ],

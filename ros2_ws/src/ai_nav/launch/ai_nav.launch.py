@@ -59,7 +59,7 @@ def setup(context):
         }.items())
 
     executor = Node(
-        package='ai_nav', executable='plan_executor', output='screen',
+        package='ai_nav', executable=LaunchConfiguration('executor').perform(context), output='screen',
         parameters=[{'use_sim_time': use_sim_time, 'places_file': places}])
 
     delayed = [navigation, executor]
@@ -97,5 +97,7 @@ def generate_launch_description():
                               description='hide(積載で箱が消え、荷降ろしで現れる。動作確認済み)| follow(箱がロボットに載って動く。実験的)'),
         DeclareLaunchArgument(
             'params_file', default_value=os.path.join(share, 'params', 'nav2_params.yaml')),
+        DeclareLaunchArgument('executor', default_value='plan_executor',
+                              description='plan_executor | plan_executor_v2(型 B・C の規則の修正)'),
         OpaqueFunction(function=setup),
     ])

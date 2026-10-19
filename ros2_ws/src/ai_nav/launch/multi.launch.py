@@ -101,7 +101,7 @@ def setup(context):
                                   'params_file': params_file, 'autostart': 'true'}.items())]))
         # plan_executor は絶対名(/ai/plan など)で購読するため、名前空間の中へ付け替える(コードは変更しない)
         delayed.append(Node(
-            package='ai_nav', executable='plan_executor', namespace=ns, output='screen',
+            package='ai_nav', executable=LaunchConfiguration('executor').perform(context), namespace=ns, output='screen',
             parameters=[{'use_sim_time': True, 'places_file': places}],
             remappings=[('/ai/plan', 'ai/plan'), ('/ai/status', 'ai/status'), ('/cmd_vel', 'cmd_vel'),
                         ('/odom', 'odom'), ('/scan', 'scan')]))
@@ -121,5 +121,7 @@ def generate_launch_description():
                               description='warehouse | warehouse_wide(C2。maps/ にも同名の地図が必要)'),
         DeclareLaunchArgument('gz_gui', default_value='false'),
         DeclareLaunchArgument('robots', default_value='2', description='ロボットの台数(2 または 3)'),
+        DeclareLaunchArgument('executor', default_value='plan_executor',
+                              description='plan_executor | plan_executor_v2(型 B・C の規則の修正)'),
         OpaqueFunction(function=setup),
     ])

@@ -4,6 +4,7 @@
 #   ./run_multi_auto.sh C2w,C2                                            # 広い通路のワールド(warehouse_wide)で実行
 #   ./run_multi_auto.sh C3,C1,C2w,C2                                      # 全条件(ワールドごとに段階を分け、切り替え時に再起動)
 #   N=3 ./run_multi_auto.sh C3                                            # 試運転(回数を減らす)
+#   EXECUTOR=plan_executor_v2 MULTI_SUFFIX=_fix SCEN=dead,waitj ./run_multi_auto.sh C0,C3   # 型 B・C の規則の修正版で測る(別ファイルに記録)
 #   SCEN=same,cross,wait ./run_multi_auto.sh C0,C1,C3,C2                  # シナリオを指定(既定 opp = 正面すれ違い。同方向 same / 交差 cross / 待機 wait)
 #   cross・crossj・dest では C2(南通路の車線規則)は対象外(自動で飛ばす)。追加: stag(時間差)・dest(同じ目的地)・dead(恒久停止)・oppj samej crossj waitj(ばらつき)
 # 事前: Docker Desktop を起動。C1 を含むときは Ollama も起動(qwen2.5:7b)。単体構成のコンテナは止めておく。
@@ -16,6 +17,10 @@ if [ -f .venv/bin/activate ]; then source .venv/bin/activate; else source ../../
 CONDS=${1:-C3,C1}
 N=${N:-10}
 SCEN=${SCEN:-opp}
+EXECUTOR=${EXECUTOR:-plan_executor}   # plan_executor_v2: 型 B・C の規則の修正(認識層の検証)。元のデータと混ぜないため MULTI_SUFFIX が必須
+if [ "$EXECUTOR" != plan_executor ] && [ -z "${MULTI_SUFFIX:-}" ]; then
+  echo "EXECUTOR=$EXECUTOR では MULTI_SUFFIX(例 _fix)を指定してください(元の測定データを上書きしないため)"; exit 1
+fi
 mkdir -p ../docs/multi/logs
 SRC="source /opt/ros/humble/setup.bash && source /home/ubuntu/ros2_ws/install/setup.bash"
 
@@ -25,7 +30,7 @@ tmo() { perl -e 'my $t=shift; my $pid=fork; if(!$pid){exec @ARGV; exit 127} $SIG
 dexec() { (cd "$DOCKER_DIR" && tmo "${TMO:-240}" docker compose exec -T -u ubuntu ros bash -c "$*"); }
 
 sim_up() {   # $1 = 期待するワールド
-  TMO=90 dexec "$SRC && ros2 lifecycle get /r1/bt_navigator 2>/dev/null | grep -q active && ros2 lifecycle get /r2/bt_navigator 2>/dev/null | grep -q active && [ \$(ros2 node list 2>/dev/null | grep -c plan_executor) = 2 ] && [ \"\$(cat /tmp/multi_world 2>/dev/null)\" = $1 ]" \
+  TMO=90 dexec "$SRC && ros2 lifecycle get /r1/bt_navigator 2>/dev/null | grep -q active && ros2 lifecycle get /r2/bt_navigator 2>/dev/null | grep -q active && [ \$(ros2 node list 2>/dev/null | grep -c plan_executor) = 2 ] && [ \"\$(cat /tmp/multi_world 2>/dev/null)\" = \"$1 $EXECUTOR\" ]" \
     && nc -z localhost 9091
 }
 
@@ -34,8 +39,8 @@ hard_restart() {   # $1 = ワールド
   (cd "$DOCKER_DIR" && tmo 180 docker compose up -d && tmo 180 docker compose restart) || return 1     # restart で、固まったコンテナ内の処理もすべて止める
   dexec "bash /home/ubuntu/ros2_ws/stop_nav.sh" >/dev/null 2>&1      # 停止と起動は別のコマンドにする(pkill -f が自分を止めるため)
   dexec "$SRC && cd ~/ros2_ws && colcon build --symlink-install > /tmp/build.log 2>&1" || { echo "colcon build に失敗(コンテナ内 /tmp/build.log)"; return 1; }
-  dexec "echo $1 > /tmp/multi_world"
-  (cd "$DOCKER_DIR" && tmo 90 docker compose exec -T -d -u ubuntu ros setsid bash /home/ubuntu/ros2_ws/run_multi.sh world:=$1)
+  dexec "echo $1 $EXECUTOR > /tmp/multi_world"
+  (cd "$DOCKER_DIR" && tmo 90 docker compose exec -T -d -u ubuntu ros setsid bash /home/ubuntu/ros2_ws/run_multi.sh world:=$1 executor:=$EXECUTOR)
   for i in $(seq 1 60); do      # 最大 5 分待つ
     sleep 5
     if sim_up "$1"; then echo "[$(date +%T)] 起動完了(約 $((i*5)) 秒)"; sleep 5; return 0; fi
