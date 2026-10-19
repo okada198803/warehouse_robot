@@ -6,7 +6,7 @@
 set -u
 cd "$(dirname "$0")/../docker" || exit 1
 SRC="source /opt/ros/humble/setup.bash && source /home/ubuntu/ros2_ws/install/setup.bash"
-dexec() { docker compose -f compose.yaml exec -T -u ubuntu ros bash -c "$*"; }
+dexec() { docker compose -f compose.yaml exec -T -u ubuntu ros bash -c "$*" < /dev/null; }
 docker compose -f compose.multi.yaml stop >/dev/null 2>&1
 docker compose -f compose.yaml up -d || exit 1
 mkdir -p ../docs/perception/data ../ros2_ws/perception_data
@@ -24,7 +24,7 @@ echo "$JOBS" | while read -r W S N; do
   if [ "$W" != "$CUR" ]; then
     echo "[$(date +%T)] シミュレータを起動します(world=$W)"
     dexec "bash /home/ubuntu/ros2_ws/stop_nav.sh" >/dev/null 2>&1
-    docker compose -f compose.yaml exec -T -d -u ubuntu ros setsid bash -c "$SRC && ros2 launch ai_nav sim.launch.py world:=$W gz_gui:=false rosbridge:=false > /tmp/sim.log 2>&1"
+    docker compose -f compose.yaml exec -T -d -u ubuntu ros setsid bash -c "$SRC && ros2 launch ai_nav sim.launch.py world:=$W gz_gui:=false rosbridge:=false > /tmp/sim.log 2>&1" < /dev/null
     for i in $(seq 1 30); do
       sleep 4
       dexec "$SRC && timeout 5 ros2 topic echo --once /scan --field angle_min" >/dev/null 2>&1 && break

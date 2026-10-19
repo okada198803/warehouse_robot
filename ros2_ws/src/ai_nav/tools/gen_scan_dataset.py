@@ -20,6 +20,7 @@ import time
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
+from rosgraph_msgs.msg import Clock
 from sensor_msgs.msg import LaserScan
 
 from ai_nav.plan_logic import aisle_scan_hits, load_places
@@ -91,18 +92,62 @@ def spawn(name, sx, sy, sz):
 class ScanTap(Node):
     def __init__(self):
         super().__init__('scan_dataset')
-        self.msg, self.count = None, 0
+        self.msg, self.sim = None, 0.0
         self.create_subscription(LaserScan, '/scan', self.cb, qos_profile_sensor_data)
+        self.create_subscription(Clock, '/clock', self.on_clock, 10)
 
     def cb(self, m):
-        self.msg, self.count = m, self.count + 1
+        self.msg = m
 
-    def fresh(self, k=2, timeout=5.0):
-        """k 回分の新しいスキャンを待って、最新を返す(瞬間移動の前のスキャンを使わないため)。"""
-        start, t0 = self.count, time.time()
-        while self.count < start + k and time.time() - t0 < timeout:
+    def on_clock(self, m):
+        self.sim = m.clock.sec + m.clock.nanosec * 1e-9
+
+    def sim_now(self, timeout=3.0):
+        t0 = time.time()
+        while self.sim == 0.0 and time.time() - t0 < timeout:
             rclpy.spin_once(self, timeout_sec=0.1)
-        return self.msg if self.count >= start + k else None
+        return self.sim
+
+    def after(self, t_sim, timeout=10.0):
+        """シミュレータ時刻 t_sim より後に取得したスキャンを返す。
+        第 1 版はスキャンの到着回数で待ったため、瞬間移動の前のスキャン(1 件前の位置)を記録していた(data/bad_lag/)。"""
+        t0 = time.time()
+        while time.time() - t0 < timeout:
+            rclpy.spin_once(self, timeout_sec=0.05)
+            m = self.msg
+            if m is not None and m.header.stamp.sec + m.header.stamp.nanosec * 1e-9 >= t_sim:
+                return m
+        return None
+
+
+def ray_box_dist(x, y, a, bx, rmax=20.0):
+    """静的な壁・棚だけの地図で、(x, y) から角度 a の方向に最初に当たる距離。"""
+    best, dx, dy = rmax, math.cos(a), math.sin(a)
+    for cx, cy, sx, sy in bx:
+        tmin, tmax, ok = 0.0, rmax, True
+        for o, d, lo, hi in ((x, dx, cx - sx / 2, cx + sx / 2), (y, dy, cy - sy / 2, cy + sy / 2)):
+            if abs(d) < 1e-9:
+                ok = ok and lo <= o <= hi
+            else:
+                t1, t2 = (lo - o) / d, (hi - o) / d
+                tmin, tmax = max(tmin, min(t1, t2)), min(tmax, max(t1, t2))
+        if ok and tmin <= tmax and tmin < best:
+            best = tmin
+    return best
+
+
+def static_mismatch(m, x, y, yaw, bx):
+    """スキャンと、記録した位置から計算した静的な地図の距離との差(中央値)。位置とスキャンの対応の確認に使う。
+    障害物のある方向は大きくずれるが、中央値なので影響は小さい。"""
+    sxp, syp = x + 0.15 * math.cos(yaw), y + 0.15 * math.sin(yaw)    # LiDAR はロボット中心の 0.15 m 前
+    errs = []
+    for i in range(0, len(m.ranges), 6):
+        r = m.ranges[i]
+        if not math.isfinite(r):
+            continue
+        errs.append(abs(min(r, 20.0) - ray_box_dist(sxp, syp, yaw + m.angle_min + i * m.angle_increment, bx)))
+    errs.sort()
+    return errs[len(errs) // 2] if errs else 99.0
 
 
 def sample_pose(rng, aisles, places, bx):
@@ -168,12 +213,16 @@ def main():
                     ign_set_pose(f'ds_{name}', PARK[0], PARK[1], sz / 2)
             if not ign_set_pose(ROBOT, x, y, 0.075, yaw):
                 continue
-            time.sleep(0.3)
-            m = tap.fresh(k=2)
+            t_moved = tap.sim_now()
+            m = tap.after(t_moved + 0.6)     # 移動の完了後、0.6 秒(シミュレータ時刻)以降のスキャン
             if m is None:
                 print('スキャンが来ません。シミュレータを確認してください')
                 break
-            rec = {'world': args.world, 'aisle': a, 'pose': [round(x, 3), round(y, 3), round(yaw, 4)],
+            mis = static_mismatch(m, x, y, yaw, bx)
+            if mis > 0.15:      # スキャンが記録した位置のものでない(移動の反映前など)。記録せずにやり直す
+                print(f'位置とスキャンが合いません(差の中央値 {mis:.2f} m)。この配置は記録しません')
+                continue
+            rec = {'mismatch': round(mis, 3), 'world': args.world, 'aisle': a, 'pose': [round(x, 3), round(y, 3), round(yaw, 4)],
                    'angle_min': m.angle_min, 'angle_increment': m.angle_increment,
                    'range_min': m.range_min, 'range_max': m.range_max,
                    'ranges': [round(r, 3) if math.isfinite(r) else None for r in m.ranges],
