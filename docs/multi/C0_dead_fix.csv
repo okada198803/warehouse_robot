@@ -1,0 +1,11 @@
+﻿scenario,cond,trial,ok_both,ok_r1,ok_r2,t_r1,t_r2,t_both,n_blocked_r1,n_blocked_r2,false_reg_r1,false_reg_r2,final_blocked_r1,final_blocked_r2,min_dist,plans_r1,plans_r2,blocks_r1,blocks_r2,error,started_at,avoid_r1,avoid_r2,t_coord,coord,delay_r1,delay_r2,t_net
+dead,C0,1,True,True,True,82.2,0.0,82.2,1,0,True,False,south_aisle,,0.22,south_aisle→shipping / middle_aisle→shipping,,"[{""t"": 52.4, ""near"": ""south_aisle"", ""cause"": ""obstacle"", ""hits"": 36}]",[],,2026-10-19 18:33:39,,,0.0,{},0.0,0.0,82.2
+dead,C0,2,True,True,True,90.3,0.0,90.3,1,0,True,False,south_aisle,,0.21,south_aisle→shipping / middle_aisle→shipping,,"[{""t"": 59.0, ""near"": ""south_aisle"", ""cause"": ""obstacle"", ""hits"": 35}]",[],,2026-10-19 18:36:20,,,0.0,{},0.0,0.0,90.3
+dead,C0,3,True,True,True,99.8,0.0,99.8,1,0,True,False,south_aisle,,0.22,south_aisle→shipping / middle_aisle→shipping,,"[{""t"": 69.5, ""near"": ""south_aisle"", ""cause"": ""obstacle"", ""hits"": 35}]",[],,2026-10-19 18:40:04,,,0.0,{},0.0,0.0,99.8
+dead,C0,4,True,True,True,27.3,0.0,27.3,0,0,False,False,,,0.21,south_aisle→shipping,,[],[],,2026-10-19 18:43:03,,,0.0,{},0.0,0.0,27.3
+dead,C0,5,True,True,True,55.7,0.0,55.7,1,0,False,False,,,0.21,south_aisle→shipping / shipping,,"[{""t"": 49.2, ""near"": null, ""cause"": ""unlocated"", ""hits"": null}]",[],,2026-10-19 18:46:28,,,0.0,{},0.0,0.0,55.7
+dead,C0,6,True,True,True,81.9,0.0,81.9,1,0,True,False,south_aisle,,0.22,south_aisle→shipping / middle_aisle→shipping,,"[{""t"": 51.5, ""near"": ""south_aisle"", ""cause"": ""obstacle"", ""hits"": 36}]",[],,2026-10-19 18:48:44,,,0.0,{},0.0,0.0,81.9
+dead,C0,7,True,True,True,27.1,0.0,27.1,0,0,False,False,,,0.21,south_aisle→shipping,,[],[],,2026-10-19 18:53:05,,,0.0,{},0.0,0.0,27.1
+dead,C0,8,True,True,True,28.2,0.0,28.2,0,0,False,False,,,0.2,south_aisle→shipping,,[],[],,2026-10-19 18:55:24,,,0.0,{},0.0,0.0,28.2
+dead,C0,9,True,True,True,91.4,0.0,91.4,1,0,True,False,south_aisle,,0.2,south_aisle→shipping / middle_aisle→shipping,,"[{""t"": 60.4, ""near"": ""south_aisle"", ""cause"": ""obstacle"", ""hits"": 35}]",[],,2026-10-19 18:58:37,,,0.0,{},0.0,0.0,91.4
+dead,C0,10,True,True,True,78.5,0.0,78.5,1,0,True,False,south_aisle,,0.22,south_aisle→shipping / middle_aisle→shipping,,"[{""t"": 49.2, ""near"": ""south_aisle"", ""cause"": ""obstacle"", ""hits"": 36}]",[],,2026-10-19 19:01:58,,,0.0,{},0.0,0.0,78.5
