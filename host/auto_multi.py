@@ -44,6 +44,8 @@ from fleet import PRIORITY, PeerChannel, aisle_at, central_assign, resolve  # no
 OUT = os.path.join(ROOT, 'docs', 'multi')
 LOGS = os.path.join(OUT, 'logs')
 RESTART = 75
+# plan_executor_v2(型 B・C の規則の修正)で測るときは、型 E(C2 の車線の補い方)も修正する。run_multi_auto.sh が EXECUTOR を渡す
+FIX_E = os.environ.get('EXECUTOR', 'plan_executor') == 'plan_executor_v2'
 TRIAL_TIMEOUT = 150.0     # 1 試行の上限 [s]。これを超えたら膠着(deadlock)とみなす
 PORT = 9091
 
@@ -298,6 +300,10 @@ def run_trial(links, tr, cond, trial, chans=None, llm=None):
             d = 'e' if pl.places[c['dest']]['x'] > x0 else 'w'
             if 'south_aisle' in plan['targets']:
                 return {**plan, 'targets': [f'south_lane_{d}' if t == 'south_aisle' else t for t in plan['targets']]}
+            # 型 E の修正(plan_executor_v2 の条件のみ。元の測定の再現性を保つため、既定の条件では従来どおり):
+            # 南通路を通行止めにした後の迂回案(中央・北通路経由)に、南通路の車線を足さない
+            if FIX_E and ('south_aisle' in pl.blocked or any(t in ('middle_aisle', 'north_aisle') for t in plan['targets'])):
+                return plan
             if SCENARIO != 'opp' and uses_south(pl, c['dest']):    # 広い通路では経由地が要らない計画にも、車線を指定する
                 return {**plan, 'targets': plan['targets'][:-1] + [f'south_lane_{d}'] + plan['targets'][-1:]}
             return plan

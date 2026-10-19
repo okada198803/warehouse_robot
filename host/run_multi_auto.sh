@@ -17,7 +17,7 @@ if [ -f .venv/bin/activate ]; then source .venv/bin/activate; else source ../../
 CONDS=${1:-C3,C1}
 N=${N:-10}
 SCEN=${SCEN:-opp}
-EXECUTOR=${EXECUTOR:-plan_executor}   # plan_executor_v2: 型 B・C の規則の修正(認識層の検証)。元のデータと混ぜないため MULTI_SUFFIX が必須
+export EXECUTOR=${EXECUTOR:-plan_executor}   # plan_executor_v2: 型 B・C の規則の修正(認識層の検証)。元のデータと混ぜないため MULTI_SUFFIX が必須
 if [ "$EXECUTOR" != plan_executor ] && [ -z "${MULTI_SUFFIX:-}" ]; then
   echo "EXECUTOR=$EXECUTOR では MULTI_SUFFIX(例 _fix)を指定してください(元の測定データを上書きしないため)"; exit 1
 fi
