@@ -13,7 +13,9 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 from ai_nav.plan_logic import load_places  # noqa: E402
-from ai_nav.scan_features import features  # noqa: E402
+from ai_nav.plan_logic import aisle_scan_hits  # noqa: E402
+from ai_nav.scan_features import LIDAR_OFFSET, features  # noqa: E402
+import math  # noqa: E402
 
 PKG = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 RULE_TH = 16
@@ -32,7 +34,12 @@ def load(paths):
             X.append(features(r['ranges'], r['angle_min'], r['angle_increment'], r['range_min'], r['range_max'],
                               r['pose'][:2], r['pose'][2], a))
             y.append(r['label'])
-            hits.append(r['rule_hits'])
+            # 規則の比較用:元の規則(ロボット中心から投影)と、LiDAR の位置を補正した規則
+            sx = r['pose'][0] + LIDAR_OFFSET * math.cos(r['pose'][2])
+            sy = r['pose'][1] + LIDAR_OFFSET * math.sin(r['pose'][2])
+            rng = [float('inf') if v is None else v for v in r['ranges']]
+            hits.append((r['rule_hits'], aisle_scan_hits(rng, r['angle_min'], r['angle_increment'], r['range_min'],
+                                                         r['range_max'], (sx, sy), r['pose'][2], a)))
             meta.append((w, r['aisle'], (r['obj'] or {}).get('type', 'none')))
     return np.array(X, float), np.array(y, float), np.array(hits), meta
 
@@ -87,25 +94,29 @@ def main():
     params = train((Xtr - mean) / std, ytr)
     pte = predict(params, (Xte - mean) / std)
     learned = (pte >= 0.5).astype(int)
-    rule = (hte >= RULE_TH).astype(int)
+    rule = (hte[:, 0] >= RULE_TH).astype(int)
+    rule_off = (hte[:, 1] >= RULE_TH).astype(int)
     lines = ['# 認識層(M8)の学習とテスト', '',
              f'- 学習: {len(ytr)} 件({", ".join(os.path.basename(p) for p in args.train)})、障害物あり {int(ytr.sum())}',
              f'- テスト: {len(yte)} 件({", ".join(os.path.basename(p) for p in args.test)})、障害物あり {int(yte.sum())}',
              f'- 規則: 確認帯の点数 ≥ {RULE_TH}。学習: 格子の点数 {Xtr.shape[1] - 4} + 相対位置 4 → 全結合 32 → 1', '',
              '| 判定 | 正解率 | 障害物あり→あり | あり→なし(見逃し) | なし→あり(誤登録) | なし→なし |', '|---|---|---|---|---|---|']
     r1, _ = table('規則(点数 ≥ 16)', rule, yte, mte)
+    r1b, _ = table('規則 + LiDAR 位置の補正', rule_off, yte, mte)
     r2, _ = table('学習', learned, yte, mte)
-    lines += r1 + r2 + ['', '## 内訳(テスト)', '', '| ワールド | 通路 | 物体 | 件数 | 規則の誤り | 学習の誤り |', '|---|---|---|---|---|---|']
+    lines += r1 + r1b + r2 + ['', '## 内訳(テスト)', '', '| ワールド | 通路 | 物体 | 件数 | 規則の誤り | 補正した規則の誤り | 学習の誤り |', '|---|---|---|---|---|---|---|']
     keys = sorted(set(mte))
     for k in keys:
         idx = [i for i, mm in enumerate(mte) if mm == k]
-        er = int((rule[idx] != yte[idx]).sum()); el = int((learned[idx] != yte[idx]).sum())
-        lines.append(f'| {k[0]} | {k[1]} | {k[2]} | {len(idx)} | {er} | {el} |')
+        er = int((rule[idx] != yte[idx]).sum()); eo = int((rule_off[idx] != yte[idx]).sum())
+        el = int((learned[idx] != yte[idx]).sum())
+        lines.append(f'| {k[0]} | {k[1]} | {k[2]} | {len(idx)} | {er} | {eo} | {el} |')
     neg = (yte == 0)
-    lines += ['', f'- 障害物なし(または帯の外)の点数: 最大 {int(hte[neg].max()) if neg.any() else "-"}、'
-              f'16 以上 {int((hte[neg] >= RULE_TH).sum())} 件',
-              f'- 障害物ありの点数: 最小 {int(hte[~neg].min()) if (~neg).any() else "-"}、'
-              f'16 未満 {int((hte[~neg] < RULE_TH).sum())} 件']
+    h0, h1 = hte[:, 0], hte[:, 1]
+    lines += ['', f'- 障害物なし(または帯の外)の点数: 元の規則で 16 以上 {int((h0[neg] >= RULE_TH).sum())} 件、'
+              f'補正した規則で {int((h1[neg] >= RULE_TH).sum())} 件',
+              f'- 障害物ありの点数: 元の規則で 16 未満 {int((h0[~neg] < RULE_TH).sum())} 件、'
+              f'補正した規則で {int((h1[~neg] < RULE_TH).sum())} 件']
     open(args.report, 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
     w1, b1, w2, b2a = params
     json.dump({'mean': mean.tolist(), 'std': std.tolist(), 'w1': w1.tolist(), 'b1': b1.tolist(),

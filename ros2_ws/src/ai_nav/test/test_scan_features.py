@@ -5,14 +5,15 @@ import os
 import numpy as np
 
 from ai_nav.plan_logic import aisle_scan_hits, load_places
-from ai_nav.scan_features import GX, GY, N_FEATURES, Recognizer, features
+from ai_nav.scan_features import GX, GY, LIDAR_OFFSET, N_FEATURES, Recognizer, features
 
 PLACES = load_places(os.path.join(os.path.dirname(__file__), '..', 'config', 'places_warehouse.yaml'))
 A = PLACES['south_aisle']
 
 
 def scan_with_point(robot, yaw, target):
-    """target の 1 点だけが返る 360 本のスキャン。"""
+    """target の 1 点だけが返る 360 本のスキャン(LiDAR はロボット中心の LIDAR_OFFSET 前)。"""
+    robot = (robot[0] + LIDAR_OFFSET * math.cos(yaw), robot[1] + LIDAR_OFFSET * math.sin(yaw))
     ranges = [float('inf')] * 360
     ang = math.atan2(target[1] - robot[1], target[0] - robot[0]) - yaw
     i = int(round((ang % (2 * math.pi)) / (2 * math.pi / 360))) % 360

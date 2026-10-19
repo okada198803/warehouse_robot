@@ -7,22 +7,25 @@
 import json
 import math
 
+LIDAR_OFFSET = 0.15   # LiDAR はロボット中心の 0.15 m 前(LidarRobo4/model.sdf)。元の規則はこの補正をしていない
 GX = (-1.6, 1.6, 16)    # 通路方向 x の範囲と分割数(0.2 m)
 GY = (-0.6, 0.6, 12)    # 通路と直交する y の範囲と分割数(0.1 m)
 N_FEATURES = GX[2] * GY[2] + 4
 
 
 def features(ranges, angle_min, angle_increment, range_min, range_max, robot_xy, robot_yaw, aisle):
-    """格子の点数(GX × GY)と、ロボットの通路に対する相対位置 (dx/1.6, dy/1.1, cos, sin) を返す。"""
+    """点は LiDAR の位置(ロボット中心の LIDAR_OFFSET 前)から投影する。格子の点数(GX × GY)と、ロボットの通路に対する相対位置 (dx/1.6, dy/1.1, cos, sin) を返す。"""
     nx, ny = GX[2], GY[2]
     grid = [0.0] * (nx * ny)
     wx, wy = (GX[1] - GX[0]) / nx, (GY[1] - GY[0]) / ny
+    sx = robot_xy[0] + LIDAR_OFFSET * math.cos(robot_yaw)
+    sy = robot_xy[1] + LIDAR_OFFSET * math.sin(robot_yaw)
     for i, r in enumerate(ranges):
         if r is None or not (range_min <= r <= range_max) or math.isinf(r) or math.isnan(r):
             continue
         a = robot_yaw + angle_min + i * angle_increment
-        lx = robot_xy[0] + r * math.cos(a) - aisle['x']
-        ly = robot_xy[1] + r * math.sin(a) - aisle['y']
+        lx = sx + r * math.cos(a) - aisle['x']
+        ly = sy + r * math.sin(a) - aisle['y']
         ix = int((lx - GX[0]) // wx)
         iy = int((ly - GY[0]) // wy)
         if 0 <= ix < nx and 0 <= iy < ny:
