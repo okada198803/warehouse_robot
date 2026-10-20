@@ -51,8 +51,12 @@ def scan(points):
     return r
 
 
-def test_rear_clearance_sees_only_behind():
+def test_rear_clearance_band_behind():
     inc = 2 * math.pi / 360
-    assert rear_clearance(scan({0.0: 0.3, math.pi / 2: 0.3}), 0.0, inc, 0.12, 20.0) == math.inf   # 前と横は見ない
-    assert rear_clearance(scan({math.pi: 0.4}), 0.0, inc, 0.12, 20.0) == 0.4                       # 真後ろ
-    assert rear_clearance(scan({math.pi + 0.6: 0.5, math.pi - 0.9: 0.2}), 0.0, inc, 0.12, 20.0) == 0.5   # ± 40° の内側だけ
+    # 前と横は数えない
+    assert rear_clearance(scan({0.0: 0.3, math.pi / 2: 0.3}), 0.0, inc, 0.12, 20.0) == math.inf
+    # 真後ろ 0.5 m の点 → 後端(0.35 m 後ろ)から 0.15 m
+    assert abs(rear_clearance(scan({math.pi: 0.5}), 0.0, inc, 0.12, 20.0) - 0.15) < 0.01
+    # 狭い通路の横の壁(横 0.4 m)を斜め後ろに見ても帯の外(第 1 版の扇形では入っていた)
+    d = 0.4 / math.sin(math.radians(35))
+    assert rear_clearance(scan({math.pi - math.radians(35): d}), 0.0, inc, 0.12, 20.0) == math.inf

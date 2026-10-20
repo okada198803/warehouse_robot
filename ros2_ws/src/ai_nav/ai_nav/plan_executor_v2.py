@@ -10,7 +10,7 @@
                  'rule_offset' : 同じ規則で、点を LiDAR の位置(中心の 0.15 m 前)から投影する(取り付け位置の補正)
                  'learned'     : 学習した分類器(recognizer_file)。事前確認は precheck_consecutive 回続けて「あり」で確定
   precheck_consecutive  learned の事前確認で、障害物ありが何回続いたら確定するか(既定 3。1 回ごとの誤判定を抑えるため)
-  rear_stop      後退中、LiDAR で真後ろ ± 40° に rear_stop [m] より近い点があれば後退をやめる(既定 0.55。0 で無効)。
+  rear_stop      後退中、ロボットの真後ろの帯(幅 0.4 m)で、後端から rear_stop [m] 以内に点があれば後退をやめる(既定 0.2。0 で無効)。
                  第 3 版で追加。延ばした後退が後方を見ずに壁・隅へ押し付け、動けなくなった(型 B、docs/perception/M9_後退の後方確認.md)
   retreat_timeout 通路を特定できた立ち往生の後に後退する時間の上限 [s](既定 40。元は 15 で固定。特定できない停止は 15 のまま)
                  元の 15 秒(0.1 m/s で 1.5 m)では、幅 0.9 m の通路の後半で止まったときに通路の外へ出られず、
@@ -48,8 +48,8 @@ class PlanExecutorV2(PlanExecutor):
         self.declare_parameter('recognizer_file', os.path.join(
             get_package_share_directory('ai_nav'), 'config', 'recognizer.json'))
         self.declare_parameter('precheck_consecutive', 3)
-        # 後退の後方確認(M9): LiDAR から真後ろ方向で、この距離より近くに点があれば後退をやめる [m]。0 で無効(後方を見ない)
-        self.declare_parameter('rear_stop', 0.55)
+        # 後退の後方確認(M9): ロボットの真後ろの帯で、後端からこの距離より近くに点があれば後退をやめる [m]。0 で無効
+        self.declare_parameter('rear_stop', 0.2)
         self._recog = None
         self.last_prob = None
         self.pre_streak = {}     # 事前確認: 通路 → 障害物ありが続いた回数(learned)
