@@ -2,7 +2,9 @@ import os
 
 import pytest
 
-from ai_nav.aisle_locate import locate_aisle, should_retry_abort
+import math
+
+from ai_nav.aisle_locate import locate_aisle, rear_clearance, should_retry_abort
 from ai_nav.plan_logic import load_places
 
 PLACES = load_places(os.path.join(os.path.dirname(__file__), '..', 'config', 'places_warehouse.yaml'))
@@ -39,3 +41,18 @@ def test_abort_retry():
     assert should_retry_abort(0, 1) is True
     assert should_retry_abort(1, 1) is False
     assert should_retry_abort(0, 0) is False
+
+
+def scan(points):
+    """{角度(LiDAR 座標、0 = 前方): 距離} 以外は無限大の 360 本。"""
+    r = [math.inf] * 360
+    for a, d in points.items():
+        r[int(round((a % (2 * math.pi)) / (2 * math.pi / 360))) % 360] = d
+    return r
+
+
+def test_rear_clearance_sees_only_behind():
+    inc = 2 * math.pi / 360
+    assert rear_clearance(scan({0.0: 0.3, math.pi / 2: 0.3}), 0.0, inc, 0.12, 20.0) == math.inf   # 前と横は見ない
+    assert rear_clearance(scan({math.pi: 0.4}), 0.0, inc, 0.12, 20.0) == 0.4                       # 真後ろ
+    assert rear_clearance(scan({math.pi + 0.6: 0.5, math.pi - 0.9: 0.2}), 0.0, inc, 0.12, 20.0) == 0.5   # ± 40° の内側だけ

@@ -33,3 +33,21 @@ def locate_aisle(pose, places, half_length=1.6, half_width=1.1):
 def should_retry_abort(retries_done, max_retries):
     """Nav2 の中断(ABORTED)の後に、同じ目的地を再送するか。"""
     return retries_done < max_retries
+
+
+def rear_clearance(ranges, angle_min, angle_increment, range_min, range_max, half_angle=0.7):
+    """LiDAR から見て真後ろ ± half_angle [rad] の範囲で、最も近い点までの距離。点がなければ無限大。
+
+    後退の前に後方を確かめるために使う(元の後退は後方を見ずに下がり、壁や隅に押し付けられて動けなくなった。
+    docs/perception/M9_後退の後方確認.md)。LiDAR はロボット中心の 0.15 m 前にあるため、
+    ロボットの後端(半径 約 0.2 m)は LiDAR から 約 0.35 m 後ろになる。
+    """
+    best = math.inf
+    for i, r in enumerate(ranges):
+        if r is None or not (range_min <= r <= range_max) or math.isinf(r) or math.isnan(r):
+            continue
+        a = angle_min + i * angle_increment
+        d = math.atan2(math.sin(a - math.pi), math.cos(a - math.pi))   # 真後ろからのずれ
+        if abs(d) <= half_angle and r < best:
+            best = r
+    return best

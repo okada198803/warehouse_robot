@@ -10,6 +10,8 @@
                  'rule_offset' : 同じ規則で、点を LiDAR の位置(中心の 0.15 m 前)から投影する(取り付け位置の補正)
                  'learned'     : 学習した分類器(recognizer_file)。事前確認は precheck_consecutive 回続けて「あり」で確定
   precheck_consecutive  learned の事前確認で、障害物ありが何回続いたら確定するか(既定 3。1 回ごとの誤判定を抑えるため)
+  rear_stop      後退中、LiDAR で真後ろ ± 40° に rear_stop [m] より近い点があれば後退をやめる(既定 0.55。0 で無効)。
+                 第 3 版で追加。延ばした後退が後方を見ずに壁・隅へ押し付け、動けなくなった(型 B、docs/perception/M9_後退の後方確認.md)
   retreat_timeout 通路を特定できた立ち往生の後に後退する時間の上限 [s](既定 40。元は 15 で固定。特定できない停止は 15 のまま)
                  元の 15 秒(0.1 m/s で 1.5 m)では、幅 0.9 m の通路の後半で止まったときに通路の外へ出られず、
                  通路の中で向きを変えようとして壁際で止まった(動作確認 C0 dead #1、docs/perception/動作確認.md)。
@@ -27,7 +29,7 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 
-from ai_nav.aisle_locate import locate_aisle, should_retry_abort
+from ai_nav.aisle_locate import locate_aisle, rear_clearance, should_retry_abort
 from ai_nav.plan_logic import aisle_scan_hits
 from ai_nav.scan_features import LIDAR_OFFSET, Recognizer, features
 from ai_nav.plan_executor import PlanExecutor
@@ -46,6 +48,8 @@ class PlanExecutorV2(PlanExecutor):
         self.declare_parameter('recognizer_file', os.path.join(
             get_package_share_directory('ai_nav'), 'config', 'recognizer.json'))
         self.declare_parameter('precheck_consecutive', 3)
+        # 後退の後方確認(M9): LiDAR から真後ろ方向で、この距離より近くに点があれば後退をやめる [m]。0 で無効(後方を見ない)
+        self.declare_parameter('rear_stop', 0.55)
         self._recog = None
         self.last_prob = None
         self.pre_streak = {}     # 事前確認: 通路 → 障害物ありが続いた回数(learned)
@@ -58,7 +62,8 @@ class PlanExecutorV2(PlanExecutor):
             f"v2: aisle_locate={self.get_parameter('aisle_locate').value} "
             f"abort_retry={self.get_parameter('abort_retry').value} "
             f"retreat_timeout={self.get_parameter('retreat_timeout').value} "
-            f"recognizer={self.get_parameter('recognizer').value} (実行中に変更可)")
+            f"recognizer={self.get_parameter('recognizer').value} (実行中に変更可) "
+            f"rear_stop={self.get_parameter('rear_stop').value}")
 
     def nearest_aisle(self):
         if self.get_parameter('aisle_locate').value != 'position':
@@ -151,7 +156,14 @@ class PlanExecutorV2(PlanExecutor):
             away = math.dist(self.odom_xy, (c['x'], c['y'])) >= self.retreat_clear
         # 通路を特定できた停止だけ、通路の外へ出るまで長く後退する。特定できない停止(ホールなど)は元の 15 秒
         limit = self.get_parameter('retreat_timeout').value if r['near'] in self.places else 15.0
-        if away or moved >= self.retreat_dist or self.now() - r['t0'] > limit:
+        rear_block = False
+        stop = self.get_parameter('rear_stop').value
+        if stop > 0 and self.scan is not None:
+            sc = self.scan
+            rear_block = rear_clearance(sc.ranges, sc.angle_min, sc.angle_increment, sc.range_min, sc.range_max) < stop
+            if rear_block:
+                self.get_logger().info('retreat: obstacle behind, stop retreating')
+        if away or rear_block or moved >= self.retreat_dist or self.now() - r['t0'] > limit:
             self.retreat = None
             self.cmd_pub.publish(Twist())
             if self.odom_xy is not None:
