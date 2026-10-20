@@ -88,6 +88,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--train', nargs='+', required=True)
     ap.add_argument('--test', nargs='+', required=True)
+    ap.add_argument('--val', nargs='*', default=[], help='しきい値を決める検証用データ(学習・テストに使わない)')
+    ap.add_argument('--max-fp', type=float, default=0.02, help='検証用データでの誤登録率の上限(既定 2%%)')
     ap.add_argument('--out', required=True)
     ap.add_argument('--report', required=True)
     args = ap.parse_args()
@@ -96,13 +98,29 @@ def main():
     mean = Xtr.mean(0); std = Xtr.std(0) + 1e-6
     params = train((Xtr - mean) / std, ytr)
     pte = predict(params, (Xte - mean) / std)
-    learned = (pte >= 0.5).astype(int)
+    th, th_note = 0.5, '既定 0.5'
+    if args.val:
+        # 事前に決めた基準: 検証用データで、誤登録率が max_fp 以下のしきい値のうち、見逃しが最も少ないもの
+        Xva, yva, _hva, _ = load(args.val)
+        pva = predict(params, (Xva - mean) / std)
+        best = None
+        for t in np.linspace(0.05, 0.99, 95):
+            fp = ((pva >= t) & (yva == 0)).sum() / max((yva == 0).sum(), 1)
+            fn = ((pva < t) & (yva == 1)).sum()
+            if fp <= args.max_fp and (best is None or fn < best[1]):
+                best = (float(t), int(fn), float(fp))
+        if best:
+            th = best[0]
+            th_note = (f'検証用 {len(yva)} 件で誤登録率 {best[2] * 100:.1f}% ≤ {args.max_fp * 100:.0f}% のうち見逃し最少'
+                       f'(見逃し {best[1]}/{int(yva.sum())})')
+    learned = (pte >= th).astype(int)
     rule = (hte[:, 0] >= RULE_TH).astype(int)
     rule_off = (hte[:, 1] >= RULE_TH).astype(int)
     lines = ['# 認識層(M8)の学習とテスト', '',
              f'- 学習: {len(ytr)} 件({", ".join(os.path.basename(p) for p in args.train)})、障害物あり {int(ytr.sum())}',
              f'- テスト: {len(yte)} 件({", ".join(os.path.basename(p) for p in args.test)})、障害物あり {int(yte.sum())}',
-             f'- 規則: 確認帯の点数 ≥ {RULE_TH}。学習: 格子の点数 {Xtr.shape[1] - 4} + 相対位置 4 → 全結合 32 → 1', '',
+             f'- 規則: 確認帯の点数 ≥ {RULE_TH}。学習: 格子の点数 {Xtr.shape[1] - 4} + 相対位置 4 → 全結合 32 → 1',
+             f'- 学習のしきい値: {th:.2f}({th_note})', '',
              '| 判定 | 正解率 | 障害物あり→あり | あり→なし(見逃し) | なし→あり(誤登録) | なし→なし |', '|---|---|---|---|---|---|']
     r1, _ = table('規則(点数 ≥ 16)', rule, yte, mte)
     r1b, _ = table('規則 + LiDAR 位置の補正', rule_off, yte, mte)
@@ -135,7 +153,7 @@ def main():
     open(args.report, 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
     w1, b1, w2, b2a = params
     json.dump({'mean': mean.tolist(), 'std': std.tolist(), 'w1': w1.tolist(), 'b1': b1.tolist(),
-               'w2': w2.tolist(), 'b2': float(b2a[0]), 'threshold': 0.5,
+               'w2': w2.tolist(), 'b2': float(b2a[0]), 'threshold': th,
                'note': '認識層(M8)。tools/train_recognizer.py で学習。特徴量は ai_nav/scan_features.py'},
               open(args.out, 'w'))
     print('\n'.join(lines))

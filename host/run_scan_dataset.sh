@@ -13,8 +13,10 @@ mkdir -p ../docs/perception/data ../ros2_ws/perception_data
 dexec "$SRC && cd ~/ros2_ws && colcon build --symlink-install --packages-select ai_nav > /tmp/build.log 2>&1" || { echo "ビルド失敗(コンテナ内 /tmp/build.log)"; exit 1; }
 # (ワールド 種 件数)。100 件ごとにシミュレータを起動し直す(長く続けると遅くなるため。第 2 版の生成で、1 分あたり約 27 件が 6 件まで低下)
 JOBS=""
-# 第 4 欄: aisle = 通路の範囲内から(停止原因の判定)、hall = ホールから通路を見る(事前確認)。種 4・5 はホール
+# 第 4 欄: aisle = 通路の範囲内から(停止原因の判定)、hall = ホールから通路を見る(事前確認)。種 4〜8 はホール
+# 用途: 学習 = 狭い通路の種 1・2・4・6・7、しきい値の決定 = 種 8、テスト = 種 3・5 と幅の広いワールド(学習・しきい値に使わない)
 for spec in "warehouse 1 500 aisle" "warehouse 2 500 aisle" "warehouse 3 300 aisle" "warehouse 4 400 hall" "warehouse 5 200 hall" \
+            "warehouse 6 400 hall" "warehouse 7 400 hall" "warehouse 8 300 hall" \
             "warehouse_wide 1 300 aisle" "warehouse_wide 2 300 aisle" "warehouse_wide 3 200 aisle"; do
   set -- $spec
   for n in $(seq 100 100 "$3"); do JOBS="$JOBS$1 $2 $n $4
