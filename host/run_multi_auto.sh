@@ -38,7 +38,7 @@ tmo() { perl -e 'my $t=shift; my $pid=fork; if(!$pid){exec @ARGV; exit 127} $SIG
 dexec() { (cd "$DOCKER_DIR" && tmo "${TMO:-240}" docker compose exec -T -u ubuntu ros bash -c "$*"); }
 
 sim_up() {   # $1 = 期待するワールド
-  TMO=90 dexec "$SRC && ros2 lifecycle get /r1/bt_navigator 2>/dev/null | grep -q active && ros2 lifecycle get /r2/bt_navigator 2>/dev/null | grep -q active && [ \$(ros2 node list 2>/dev/null | grep -c plan_executor) = 2 ] && [ \"\$(cat /tmp/multi_world 2>/dev/null)\" = \"$1 $EXECUTOR $RECOGNIZER\" ]" \
+  TMO=90 dexec "$SRC && ros2 lifecycle get /r1/bt_navigator 2>/dev/null | grep -q active && ros2 lifecycle get /r2/bt_navigator 2>/dev/null | grep -q active && [ \$(ros2 node list 2>/dev/null | grep -c plan_executor) = 2 ] && [ \"\$(cat /tmp/multi_world 2>/dev/null)\" = \"$1 $EXECUTOR${RECOGNIZER:+ $RECOGNIZER}\" ]" \
     && nc -z localhost 9091
 }
 
@@ -47,7 +47,7 @@ hard_restart() {   # $1 = ワールド
   (cd "$DOCKER_DIR" && tmo 180 docker compose up -d && tmo 180 docker compose restart) || return 1     # restart で、固まったコンテナ内の処理もすべて止める
   dexec "bash /home/ubuntu/ros2_ws/stop_nav.sh" >/dev/null 2>&1      # 停止と起動は別のコマンドにする(pkill -f が自分を止めるため)
   dexec "$SRC && cd ~/ros2_ws && colcon build --symlink-install > /tmp/build.log 2>&1" || { echo "colcon build に失敗(コンテナ内 /tmp/build.log)"; return 1; }
-  dexec "echo $1 $EXECUTOR $RECOGNIZER > /tmp/multi_world"
+  dexec "echo '$1 $EXECUTOR${RECOGNIZER:+ $RECOGNIZER}' > /tmp/multi_world"     # RECOGNIZER が空のときに末尾の空白が残らないようにする
   (cd "$DOCKER_DIR" && tmo 90 docker compose exec -T -d -u ubuntu ros setsid bash /home/ubuntu/ros2_ws/run_multi.sh world:=$1 executor:=$EXECUTOR)
   for i in $(seq 1 60); do      # 最大 5 分待つ
     sleep 5
