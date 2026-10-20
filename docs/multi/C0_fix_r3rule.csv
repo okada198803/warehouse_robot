@@ -1,0 +1,4 @@
+﻿scenario,cond,trial,ok_both,ok_r1,ok_r2,t_r1,t_r2,t_both,n_blocked_r1,n_blocked_r2,false_reg_r1,false_reg_r2,final_blocked_r1,final_blocked_r2,min_dist,plans_r1,plans_r2,blocks_r1,blocks_r2,error,started_at,avoid_r1,avoid_r2,t_coord,coord,delay_r1,delay_r2,t_net
+opp,C0,1,False,True,False,131.0,,,1,0,False,False,,,0.29,south_aisle→shipping / shipping,south_aisle→receiving,"[{""t"": 84.6, ""near"": ""south_aisle"", ""cause"": ""unconfirmed"", ""hits"": 0}]",[],r2:fail:timeout,2026-10-20 21:23:47,,,0.0,{},0.0,0.0,
+opp,C0,2,False,False,True,,140.9,,0,0,False,False,,,0.19,south_aisle→shipping,south_aisle→receiving,[],[],r1:fail:timeout,2026-10-20 21:26:30,,,0.0,{},0.0,0.0,
+opp,C0,3,False,True,False,112.2,,,0,1,False,False,,,0.3,south_aisle→shipping,south_aisle→receiving / receiving,[],"[{""t"": 135.2, ""near"": null, ""cause"": ""unlocated"", ""hits"": null}]",r2:fail:timeout,2026-10-20 21:29:15,,,0.0,{},0.0,0.0,
