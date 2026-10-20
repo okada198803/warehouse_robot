@@ -1,6 +1,8 @@
 """認識層(M8)の走行検証 P1: 口頭で「片付いた」と解除された通路に、停止ロボット(小さい障害物)が残っている場面。
+R3(回帰の確認):単一の迂回(V5)と LiDAR の事前確認(V3)を、学習した認識器で再実行する。
 
     python auto_percep.py --n 10            # 通常は run_percep.sh 経由(シミュレータの起動・再起動を行う)
+    python auto_percep.py --suite r3        # R3(SUITE=r3 bash run_percep.sh)
 
 条件(各 n 回、交互に実行):
   P_rule / P_offset / P_learned  南通路に停止ロボットを模した箱を置き、「南通路は塞がれている」→「南通路は片付いた。出荷口へ行って」
@@ -49,6 +51,7 @@ def place_box(_aisle):
     time.sleep(1.5)
 
 
+_orig_place = A.place_pallet
 A.soft_reset = soft_reset
 A.place_pallet = place_box
 
@@ -65,17 +68,38 @@ def trials(n):
     return out
 
 
+def trials_r3(n):
+    """R3。V5:南通路のパレットで立ち往生 → 中央通路へ迂回(元 20/20、誤登録 0/20)。学習と、補正した規則(同じ実行部での対照)を交互に。
+    V3:口頭で解除された南通路にパレットが残る(事前確認あり / なし)、対照は本当に片付いている。学習だけ(元の値は docs/auto/v3.csv)。
+    障害物は元の検証と同じパレット(obstacle place)。"""
+    out = []
+    for i in range(1, (n or 20) + 1):
+        for rec, short in (('learned', 'learned'), ('rule_offset', 'offset')):
+            out.append((dict(suite='r3', cond=f'V5_{short}', recognizer=rec, precheck=True, pallets=['south_aisle'],
+                             obstacle='pallet', script=['出荷口へ行って'], expected_blocked=['south_aisle']), i))
+        if i <= (n or 20) // 2:
+            out.append((dict(suite='r3', cond='V3_on_learned', recognizer='learned', precheck=True, pallets=['south_aisle'],
+                             obstacle='pallet', script=A.VERBAL, expected_blocked=['south_aisle']), i))
+            out.append((dict(suite='r3', cond='V3_off_learned', recognizer='learned', precheck=False, pallets=['south_aisle'],
+                             obstacle='pallet', script=A.VERBAL, expected_blocked=['south_aisle']), i))
+            out.append((dict(suite='r3', cond='V3_control_learned', recognizer='learned', precheck=True, pallets=[],
+                             obstacle='pallet', script=A.VERBAL, expected_blocked=[]), i))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--n', type=int, default=10)
+    ap.add_argument('--suite', default='p1', choices=['p1', 'r3'])
+    ap.add_argument('--n', type=int, default=None, help='p1 既定 10、r3 既定 20(V3 はその半分)')
     ap.add_argument('--model', default='qwen2.5:7b')
     ap.add_argument('--host', default='localhost')
     ap.add_argument('--max-errors', type=int, default=3)
     args = ap.parse_args()
     os.makedirs(A.OUT, exist_ok=True)
-    path = os.path.join(A.OUT, 'p1.csv')
-    todo = [(s, i) for s, i in trials(args.n) if (s['cond'], i) not in A.load_done(path)]
-    print(f'[p1] 残り {len(todo)} 試行', flush=True)
+    path = os.path.join(A.OUT, f'{args.suite}.csv')
+    specs = trials(args.n or 10) if args.suite == 'p1' else trials_r3(args.n)
+    todo = [(s, i) for s, i in specs if (s['cond'], i) not in A.load_done(path)]
+    print(f'[{args.suite}] 残り {len(todo)} 試行', flush=True)
     if not todo:
         return 0
     if not A.healthy():
@@ -93,8 +117,9 @@ def main():
     consecutive = 0
     try:
         for spec, i in todo:
-            print(f'[{time.strftime("%H:%M:%S")}] p1 {spec["cond"]} #{i} ...', flush=True)
+            print(f'[{time.strftime("%H:%M:%S")}] {args.suite} {spec["cond"]} #{i} ...', flush=True)
             try:
+                A.place_pallet = _orig_place if spec.get('obstacle') == 'pallet' else place_box
                 A.set_param('recognizer', spec['recognizer'])
                 row = A.run_trial(link, hub, spec, i, args)
             except A.NeedRestart as e:
