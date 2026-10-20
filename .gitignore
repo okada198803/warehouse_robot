@@ -24,3 +24,4 @@ host/pointing_calib.json
 docs/multi/logs/
 docs/multi/*_video.csv
 ros2_ws/perception_data/
+docs/perception/runs/logs/
