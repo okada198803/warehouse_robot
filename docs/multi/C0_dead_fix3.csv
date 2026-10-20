@@ -1,0 +1,11 @@
+﻿scenario,cond,trial,ok_both,ok_r1,ok_r2,t_r1,t_r2,t_both,n_blocked_r1,n_blocked_r2,false_reg_r1,false_reg_r2,final_blocked_r1,final_blocked_r2,min_dist,plans_r1,plans_r2,blocks_r1,blocks_r2,error,started_at,avoid_r1,avoid_r2,t_coord,coord,delay_r1,delay_r2,t_net
+dead,C0,1,True,True,True,28.4,0.0,28.4,0,0,False,False,,,0.17,south_aisle→shipping,,[],[],,2026-10-20 18:56:46,,,0.0,{},0.0,0.0,28.4
+dead,C0,2,True,True,True,83.1,0.0,83.1,1,0,True,False,south_aisle,,0.18,south_aisle→shipping / middle_aisle→shipping,,"[{""t"": 52.4, ""near"": ""south_aisle"", ""cause"": ""obstacle"", ""hits"": 36}]",[],,2026-10-20 18:59:21,,,0.0,{},0.0,0.0,83.1
+dead,C0,3,True,True,True,28.1,0.0,28.1,0,0,False,False,,,0.21,south_aisle→shipping,,[],[],,2026-10-20 19:02:14,,,0.0,{},0.0,0.0,28.1
+dead,C0,4,False,False,True,,0.0,,2,0,True,False,south_aisle,,0.22,south_aisle→shipping / middle_aisle→shipping / middle_aisle→shipping,,"[{""t"": 32.5, ""near"": ""south_aisle"", ""cause"": ""obstacle"", ""hits"": 36}, {""t"": 98.5, ""near"": ""south_aisle"", ""cause"": ""unconfirmed"", ""hits"": 13}]",[],r1:fail:timeout,2026-10-20 19:04:45,,,0.0,{},0.0,0.0,
+dead,C0,5,True,True,True,56.8,0.0,56.8,1,0,False,False,,,0.21,south_aisle→shipping / shipping,,"[{""t"": 50.3, ""near"": null, ""cause"": ""unlocated"", ""hits"": null}]",[],,2026-10-20 19:08:13,,,0.0,{},0.0,0.0,56.8
+dead,C0,6,True,True,True,55.3,0.0,55.3,1,0,False,False,,,0.21,south_aisle→shipping / shipping,,"[{""t"": 48.3, ""near"": null, ""cause"": ""unlocated"", ""hits"": null}]",[],,2026-10-20 19:11:32,,,0.0,{},0.0,0.0,55.3
+dead,C0,7,True,True,True,92.4,0.0,92.4,1,0,True,False,south_aisle,,0.21,south_aisle→shipping / middle_aisle→shipping,,"[{""t"": 61.4, ""near"": ""south_aisle"", ""cause"": ""obstacle"", ""hits"": 36}]",[],,2026-10-20 19:14:46,,,0.0,{},0.0,0.0,92.4
+dead,C0,8,True,True,True,36.1,0.0,36.1,0,0,False,False,,,0.21,south_aisle→shipping,,[],[],,2026-10-20 19:17:53,,,0.0,{},0.0,0.0,36.1
+dead,C0,9,True,True,True,30.9,0.0,30.9,0,0,False,False,,,0.21,south_aisle→shipping,,[],[],,2026-10-20 19:20:21,,,0.0,{},0.0,0.0,30.9
+dead,C0,10,True,True,True,55.8,0.0,55.8,1,0,False,False,,,0.2,south_aisle→shipping / shipping,,"[{""t"": 49.4, ""near"": null, ""cause"": ""unlocated"", ""hits"": null}]",[],,2026-10-20 19:23:43,,,0.0,{},0.0,0.0,55.8
