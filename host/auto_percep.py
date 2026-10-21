@@ -3,6 +3,7 @@ R3(回帰の確認):単一の迂回(V5)と LiDAR の事前確認(V3)を、学習
 
     python auto_percep.py --n 10            # 通常は run_percep.sh 経由(シミュレータの起動・再起動を行う)
     python auto_percep.py --suite r3        # R3(SUITE=r3 bash run_percep.sh)
+    python auto_percep.py --suite p1v3      # P1 を、通路幅で正規化した認識器(R1c の L2n、recognizer_v3.json)で(SUITE=p1v3 bash run_percep.sh)
 
 条件(各 n 回、交互に実行):
   P_rule / P_offset / P_learned  南通路に停止ロボットを模した箱を置き、「南通路は塞がれている」→「南通路は片付いた。出荷口へ行って」
@@ -87,9 +88,23 @@ def trials_r3(n):
     return out
 
 
+V3_FILE = '/home/ubuntu/ros2_ws/install/ai_nav/share/ai_nav/config/recognizer_v3.json'
+
+
+def trials_p1v3(n):
+    """P1 と同じ場面を、正規化した認識器(L2n)で。規則の条件は P1(p1.csv)と同じなので測り直さない。"""
+    out = []
+    for i in range(1, (n or 10) + 1):
+        out.append((dict(suite='p1v3', cond='P_learned_v3', recognizer='learned', precheck=True, pallets=['south_aisle'],
+                         script=A.VERBAL, expected_blocked=['south_aisle']), i))
+        out.append((dict(suite='p1v3', cond='C_learned_v3', recognizer='learned', precheck=True, pallets=[],
+                         script=A.VERBAL, expected_blocked=[]), i))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--suite', default='p1', choices=['p1', 'r3'])
+    ap.add_argument('--suite', default='p1', choices=['p1', 'r3', 'p1v3'])
     ap.add_argument('--n', type=int, default=None, help='p1 既定 10、r3 既定 20(V3 はその半分)')
     ap.add_argument('--model', default='qwen2.5:7b')
     ap.add_argument('--host', default='localhost')
@@ -97,7 +112,7 @@ def main():
     args = ap.parse_args()
     os.makedirs(A.OUT, exist_ok=True)
     path = os.path.join(A.OUT, f'{args.suite}.csv')
-    specs = trials(args.n or 10) if args.suite == 'p1' else trials_r3(args.n)
+    specs = {'p1': lambda: trials(args.n or 10), 'r3': lambda: trials_r3(args.n), 'p1v3': lambda: trials_p1v3(args.n)}[args.suite]()
     todo = [(s, i) for s, i in specs if (s['cond'], i) not in A.load_done(path)]
     print(f'[{args.suite}] 残り {len(todo)} 試行', flush=True)
     if not todo:
@@ -109,6 +124,9 @@ def main():
     if rc != 0:
         print('plan_executor_v2 で起動していません(recognizer パラメータがない)。run_percep.sh から実行してください')
         return 2
+    if args.suite == 'p1v3':
+        # 認識器は最初に使うときに読み込まれる(plan_executor_v2.recog)。シミュレータの起動直後に、読み込むファイルを指定する
+        A.set_param('recognizer_file', V3_FILE)
     from llm_commander import make_llm
     make_llm(args.model)([{'role': 'user', 'content': '{}'}], {'type': 'object'})
     from ros_link import RosLink
