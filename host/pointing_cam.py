@@ -2,6 +2,7 @@
 
     python pointing_cam.py                 # 認識。同じ方向を 1 秒保持すると確定する
     python pointing_cam.py --calibrate     # 起動直後から校正モードで表示(キー操作は常に有効)
+    python pointing_cam.py --skeleton-only # カメラ映像を出さず、手の骨格だけを黒背景に描く
 
 操作(ウィンドウを選択してキー入力)
     n / c / s   北・中央・南の荷物を指して押す。2 秒間の指差しの中央値をその方向の校正値にする
@@ -10,7 +11,8 @@
     q           終了
 
 確定した荷物 id は /tmp/pai_pointing.json に書く(llm_commander.py --cargo が「あれ」の解決に使う)。
-プライバシー: カメラ映像は表示・保存せず、手の骨格だけを黒背景に描く(動画に顔や部屋が映らない)。
+表示: 既定は、カメラ映像(鏡像)に手の骨格と判定を重ねる(gesture_teleop.py の非常停止と同じ作り)。映像は保存しない。
+プライバシー: カメラは手元に向け、顔が映らない位置に置く。顔や部屋を出したくないときは --skeleton-only。
 AI: MediaPipe Gesture Recognizer の手のランドマーク(ローカル推論、無料)
 """
 import argparse
@@ -39,7 +41,7 @@ def u_to_x(u):
 
 
 def draw(canvas, lm, selector, calib, now, u, sampling, current):
-    # 手の骨格(鏡像)。カメラ映像は使わない
+    # 手の骨格(鏡像)。canvas はカメラ映像(既定)か黒背景(--skeleton-only)
     if lm is not None:
         pts = [(int(p.x * W), int(p.y * H)) for p in lm]
         for a, b in CONNECTIONS:
@@ -78,6 +80,7 @@ def draw(canvas, lm, selector, calib, now, u, sampling, current):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--camera', type=int, default=0)
+    ap.add_argument('--skeleton-only', action='store_true', help='カメラ映像を出さず、手の骨格だけを黒背景に描く')
     ap.add_argument('--calib', default=CALIB_FILE)
     ap.add_argument('--dwell', type=float, default=1.0, help='同じ方向をこの秒数保持したら確定')
     ap.add_argument('--ttl', type=float, default=10.0, help='確定した荷物が有効な秒数')
@@ -122,9 +125,12 @@ def main():
                 if confirmed:
                     write_selection(confirmed)
                     print(f'指差し確定: {confirmed}')
-            canvas = np.zeros((H, W, 3), dtype=np.uint8)
+            if args.skeleton_only:
+                canvas = np.zeros((H, W, 3), dtype=np.uint8)
+            else:
+                canvas = cv2.resize(frame, (W, H))   # 骨格の座標(正規化 × W, H)と合わせる
             draw(canvas, lm, selector, calib, now, u, sampling, selector.current(now))
-            cv2.imshow('pointing (skeleton only)', canvas)
+            cv2.imshow('pointing (q: quit)', canvas)
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
                 break

@@ -172,7 +172,7 @@ cd host && python -m pytest tests                # ジェスチャー変換・�
 
 ```bash
 bash ~/ros2_ws/run_nav.sh cargo:=true       # Docker(noVNC)
-python pointing_cam.py                      # Mac: 指差し(カメラ映像は表示せず、手の骨格だけ描く)
+python pointing_cam.py                      # Mac: 指差し(カメラ映像に手の骨格を重ねる。骨格だけにするときは --skeleton-only)
 python llm_commander.py --cargo             # Mac: 「あれを出荷口へ運んで」
 ```
 
