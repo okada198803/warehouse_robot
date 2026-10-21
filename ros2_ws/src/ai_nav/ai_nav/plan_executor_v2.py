@@ -95,7 +95,7 @@ class PlanExecutorV2(PlanExecutor):
     def learned_prob(self, aisle):
         sc = self.scan
         f = features(sc.ranges, sc.angle_min, sc.angle_increment, sc.range_min, sc.range_max,
-                     self.odom_xy, self.odom_yaw, self.places[aisle])
+                     self.odom_xy, self.odom_yaw, self.places[aisle], norm=self.recog().norm)
         return self.recog().is_obstacle(f)
 
     def classify(self, near):

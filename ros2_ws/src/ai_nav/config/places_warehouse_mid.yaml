@@ -1,0 +1,111 @@
+# 認識層の汎化のテスト用(南通路の幅 1.2 m)。places_warehouse.yaml から、南通路の幅と中心だけを変えたもの
+# 倉庫ワールドの地点辞書(map 座標系 = Gazebo の世界座標, 単位 m / rad)
+# kind: area = 作業地点, aisle = 西ホールと東ホールを結ぶ通路(通行止めになり得る)
+# 西ホール(x < 2.0)と東ホール(x > 5.0)は 南・中央・北 の 3 本の通路でのみつながる。
+notes: |
+  西ホール(入荷口・事務所前・西ホール)と東ホール(出荷口・充電ステーション・東ホール)の間は、
+  南通路・中央通路・北通路の3本でのみつながっている。入荷口から出荷口までの距離は
+  南通路経由が約5.5m、中央通路経由が約7.5m、北通路経由が約10mで、南が最短。
+  経由地を指定しないとロボットは最短の通路を通る。
+places:
+  receiving:
+    name: 入荷口
+    aliases: [入荷, 荷受け, スタート, ホーム]
+    description: 西ホール南側。ロボットの待機場所
+    kind: area
+    x: 0.8
+    y: 0.8
+    yaw: 0.0
+  office:
+    name: 事務所前
+    aliases: [事務所, オフィス]
+    description: 西ホール北側
+    kind: area
+    x: 0.8
+    y: 4.2
+    yaw: 1.57
+  west_hall:
+    name: 西ホール
+    aliases: [西側]
+    description: 倉庫西側の広い空間
+    kind: area
+    x: 1.0
+    y: 2.5
+    yaw: 0.0
+  shipping:
+    name: 出荷口
+    aliases: [出荷, 発送]
+    description: 東ホール南側
+    kind: area
+    x: 6.2
+    y: 0.8
+    yaw: 0.0
+  charger:
+    name: 充電ステーション
+    aliases: [充電, 充電所]
+    description: 東ホール北側
+    kind: area
+    x: 6.2
+    y: 4.2
+    yaw: 1.57
+  east_hall:
+    name: 東ホール
+    aliases: [東側]
+    description: 倉庫東側の広い空間
+    kind: area
+    x: 6.0
+    y: 2.5
+    yaw: 3.14
+  south_aisle:
+    name: 南通路
+    aliases: [南側の通路, 下の通路]
+    description: 西ホールと東ホールを結ぶ最短の通路(幅1.2m。仕切りを半分にした通路)
+    kind: aisle
+    x: 3.5
+    y: 0.9
+    yaw: 0.0
+  middle_aisle:
+    name: 中央通路
+    aliases: [棚の間, 真ん中の通路]
+    description: 2列の棚の間を通る通路(幅0.8m)
+    kind: aisle
+    x: 3.5
+    y: 2.5
+    yaw: 0.0
+  north_aisle:
+    name: 北通路
+    aliases: [北側の通路, 上の通路]
+    description: 倉庫北側を回る通路(幅0.9m)。遠回り
+    kind: aisle
+    x: 3.5
+    y: 3.95
+    yaw: 0.0
+  # ---- 荷物置き場(kind: cargo)。--cargo のときだけ LLM に見せる。box は荷物の箱の位置(見た目のみ・衝突なし)
+  # コントロールルーム(-0.8, 2.5)から東を向いて見た方向: 北=左、南=右。ロボットは箱の 0.6 m 手前で止まる
+  cargo_north:
+    name: 北の荷物
+    aliases: [北側の荷物, 左の荷物]
+    description: 西ホール北側の荷物置き場
+    kind: cargo
+    x: 1.1
+    y: 3.4
+    yaw: 0.0
+    box: {x: 0.5, y: 3.4}
+  cargo_center:
+    name: 中央の荷物
+    aliases: [真ん中の荷物, 中の荷物]
+    description: 西ホール中央の荷物置き場
+    kind: cargo
+    x: 1.0
+    y: 2.5
+    yaw: 0.0
+    box: {x: 0.5, y: 2.5}
+  cargo_south:
+    name: 南の荷物
+    aliases: [南側の荷物, 右の荷物]
+    description: 西ホール南側の荷物置き場
+    kind: cargo
+    x: 1.1
+    y: 1.6
+    yaw: 0.0
+    box: {x: 0.5, y: 1.6}

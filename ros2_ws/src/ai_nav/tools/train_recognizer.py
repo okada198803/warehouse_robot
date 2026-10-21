@@ -21,7 +21,7 @@ PKG = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 RULE_TH = 16
 
 
-def load(paths):
+def load(paths, norm=False):
     places = {}
     X, y, hits, meta = [], [], [], []
     for p in paths:
@@ -32,7 +32,7 @@ def load(paths):
                 places[w] = load_places(os.path.join(PKG, 'config', f'places_{w}.yaml'))
             a = places[w][r['aisle']]
             X.append(features(r['ranges'], r['angle_min'], r['angle_increment'], r['range_min'], r['range_max'],
-                              r['pose'][:2], r['pose'][2], a))
+                              r['pose'][:2], r['pose'][2], a, norm=norm))
             y.append(r['label'])
             # 規則の比較用:元の規則(ロボット中心から投影)と、LiDAR の位置を補正した規則
             sx = r['pose'][0] + LIDAR_OFFSET * math.cos(r['pose'][2])
@@ -92,16 +92,17 @@ def main():
     ap.add_argument('--max-fp', type=float, default=0.02, help='検証用データでの誤登録率の上限(既定 2%%)')
     ap.add_argument('--out', required=True)
     ap.add_argument('--report', required=True)
+    ap.add_argument('--norm', action='store_true', help='通路と直交する方向を通路幅で正規化する(第 3 版の比較)')
     args = ap.parse_args()
-    Xtr, ytr, _htr, _ = load(args.train)
-    Xte, yte, hte, mte = load(args.test)
+    Xtr, ytr, _htr, _ = load(args.train, args.norm)
+    Xte, yte, hte, mte = load(args.test, args.norm)
     mean = Xtr.mean(0); std = Xtr.std(0) + 1e-6
     params = train((Xtr - mean) / std, ytr)
     pte = predict(params, (Xte - mean) / std)
     th, th_note = 0.5, '既定 0.5'
     if args.val:
         # 事前に決めた基準: 検証用データで、誤登録率が max_fp 以下のしきい値のうち、見逃しが最も少ないもの
-        Xva, yva, _hva, _ = load(args.val)
+        Xva, yva, _hva, _ = load(args.val, args.norm)
         pva = predict(params, (Xva - mean) / std)
         best = None
         for t in np.linspace(0.05, 0.99, 95):
@@ -153,7 +154,7 @@ def main():
     open(args.report, 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
     w1, b1, w2, b2a = params
     json.dump({'mean': mean.tolist(), 'std': std.tolist(), 'w1': w1.tolist(), 'b1': b1.tolist(),
-               'w2': w2.tolist(), 'b2': float(b2a[0]), 'threshold': th,
+               'w2': w2.tolist(), 'b2': float(b2a[0]), 'threshold': th, 'norm': bool(args.norm),
                'note': '認識層(M8)。tools/train_recognizer.py で学習。特徴量は ai_nav/scan_features.py'},
               open(args.out, 'w'))
     print('\n'.join(lines))

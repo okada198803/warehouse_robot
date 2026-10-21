@@ -27,7 +27,7 @@ from ai_nav.plan_logic import aisle_scan_hits, load_places
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PKG = os.path.dirname(HERE)
-GW = 'warehouse'     # SDF のワールド名(warehouse_wide も同じ名前)
+GW = 'warehouse'     # SDF のワールド名(warehouse_wide・warehouse_mid も同じ名前)
 ROBOT = 'LidarRobo4'
 R_ROBOT = 0.22       # 瞬間移動の位置が壁・棚に重ならないための半径 [m]
 BAND_HL, BAND_HW = 1.2, 0.3
@@ -43,6 +43,8 @@ def boxes(world):
     b = gw.BOXES
     if world == 'warehouse_wide':
         b = [x for x in b if x[0] != 'gate_south']
+    elif world == 'warehouse_mid':
+        b = [x if x[0] != 'gate_south' else ('gate_south', 3.5, 0.15, 0.2, 0.3, x[5], x[6]) for x in b]
     return [(cx, cy, sx, sy) for _n, cx, cy, sx, sy, _z, _c in b]
 
 
@@ -191,7 +193,7 @@ def sample_object(rng, aisle, robot_xy, bx):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--world', default='warehouse', choices=['warehouse', 'warehouse_wide'])
+    ap.add_argument('--world', default='warehouse', choices=['warehouse', 'warehouse_wide', 'warehouse_mid'])
     ap.add_argument('--n', type=int, default=600)
     ap.add_argument('--seed', type=int, default=1)
     ap.add_argument('--p-obj', type=float, default=0.5, help='障害物を置く割合')

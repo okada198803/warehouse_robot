@@ -14,7 +14,7 @@ PKG = os.path.dirname(HERE)
 TEMPLATE = os.path.join(PKG, '..', 'nav_dev', 'models', 'worlds', 'nav_slam.sdf')
 
 WORLD_NAME = 'warehouse'     # SDF 内のワールド名(シミュレータのサービス名 /world/warehouse/... に使う)
-FILE_NAME = 'warehouse'      # 出力ファイル名の基(--wide のときは warehouse_wide)
+FILE_NAME = 'warehouse'      # 出力ファイル名の基(--wide のときは warehouse_wide、--mid のときは warehouse_mid)
 SIZE_X, SIZE_Y = 7.0, 5.0       # 床面(m)
 RES = 0.05                      # 地図解像度(m/px)
 MARGIN = 0.25                   # 地図の外側余白(m)
@@ -157,5 +157,9 @@ if __name__ == '__main__':
         # 既定の warehouse.* は書き換えず、warehouse_wide.* に出力する
         BOXES = [b for b in BOXES if b[0] != 'gate_south']
         FILE_NAME = 'warehouse_wide'
+    elif '--mid' in sys.argv:
+        # 認識層の汎化のテスト用:南通路の仕切りを半分の奥行(0.3 m)にして、幅 1.2 m にした別ワールド(学習には使わない幅)
+        BOXES = [b if b[0] != 'gate_south' else ('gate_south', 3.5, 0.15, 0.2, 0.3, 0.5, GATE) for b in BOXES]
+        FILE_NAME = 'warehouse_mid'
     print(write_world())
     print(write_map())

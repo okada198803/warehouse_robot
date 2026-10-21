@@ -27,6 +27,12 @@ WORLDS = {
         'extra_models': [],
         'spawn': (0.8, 0.8, 0.0),
     },
+    # 認識層の汎化のテスト(南通路の幅 1.2 m。学習に使わない幅)
+    'warehouse_mid': {
+        'sdf': ('ai_nav', 'worlds', 'warehouse_mid.sdf'),
+        'extra_models': [],
+        'spawn': (0.8, 0.8, 0.0),
+    },
     'field': {
         'sdf': ('nav_dev', 'models', 'worlds', 'nav_slam.sdf'),
         'extra_models': [('nav_dev', 'models', 'field', 'model.sdf')],

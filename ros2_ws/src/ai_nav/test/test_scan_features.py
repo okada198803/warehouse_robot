@@ -53,3 +53,17 @@ def test_recognizer_matches_numpy(tmp_path):
     hh = np.maximum(0, np.array(m['w1']) @ xs + np.array(m['b1']))
     want = 1 / (1 + np.exp(-(hh @ np.array(m['w2']) + m['b2'])))
     assert abs(rec.prob(x.tolist()) - want) < 1e-9
+
+
+def test_width_normalization_maps_walls_to_same_cell():
+    """幅 1.5 m の通路の壁際(中心から 0.7 m)は、正規化すると幅 0.9 m の通路の 0.42 m と同じ格子に入る。"""
+    from ai_nav.scan_features import aisle_width
+    wide = dict(A, description='幅1.5m の通路')
+    assert aisle_width(A) == 0.9 and aisle_width(wide) == 1.5
+    robot, yaw = (A['x'] - 1.0, A['y']), 0.0
+    fw = features(scan_with_point(robot, yaw, (A['x'], A['y'] + 0.7)), 0.0, 2 * math.pi / 360, 0.12, 20.0, robot, yaw, wide, norm=True)
+    fn = features(scan_with_point(robot, yaw, (A['x'], A['y'] + 0.42)), 0.0, 2 * math.pi / 360, 0.12, 20.0, robot, yaw, A, norm=True)
+    assert fw[:-4].index(1.0) == fn[:-4].index(1.0)
+    # 正規化しなければ、0.7 m は格子の外(±0.6 m)
+    f0 = features(scan_with_point(robot, yaw, (A['x'], A['y'] + 0.7)), 0.0, 2 * math.pi / 360, 0.12, 20.0, robot, yaw, wide)
+    assert sum(f0[:-4]) == 0.0
